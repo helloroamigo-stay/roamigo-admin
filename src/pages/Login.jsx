@@ -4,8 +4,8 @@ import { Compass, Mail, Lock, ShieldAlert, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const { login, error: authError, setError } = useAuth();
-  const [email, setEmail] = useState('admin@roamigo.in');
-  const [password, setPassword] = useState('Password123');
+  const [email, setEmail] = useState('admin@gmail.com');
+  const [password, setPassword] = useState('admin@123');
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -21,7 +21,7 @@ const Login = () => {
       setFormError('');
       await login(email, password);
     } catch (err) {
-      // Auth error is captured in context
+
       setFormError(err.message || 'Login failed.');
     } finally {
       setLoading(false);
