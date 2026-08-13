@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { adminAPI } from '../services/api';
+import { adminAPI, uploadAPI, getFullUploadUrl } from '../services/api';
 import {
   Check,
   X,
   Home,
   MapPin,
-  DollarSign,
   User,
   Users,
   BedDouble,
   Bath,
   Loader2,
-  AlertCircle,
   Plus,
-  Edit
+  Edit,
+  UploadCloud,
+  Trash2,
+  FileText,
+  Star
 } from 'lucide-react';
+
 
 const Properties = () => {
   const [properties, setProperties] = useState([]);
@@ -50,10 +53,14 @@ const Properties = () => {
     images: '',
     tagline: '',
     collectionId: '',
-    amenities: []
+    amenities: [],
+    mealsDescription: '',
+    mealsPdf: ''
   };
 
   const [form, setForm] = useState(initialFormState);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const handleOpenEditModal = (p) => {
     setEditingPropertyId(p._id);
@@ -76,10 +83,13 @@ const Properties = () => {
       images: p.images ? p.images.join(', ') : '',
       tagline: p.tagline || '',
       collectionId: p.collectionId?._id || p.collectionId || '',
-      amenities: p.amenities || []
+      amenities: p.amenities || [],
+      mealsDescription: p.mealsDescription || '',
+      mealsPdf: p.mealsPdf || ''
     });
     setIsCreateModalOpen(true);
   };
+
 
   useEffect(() => {
     fetchProperties();
@@ -113,6 +123,63 @@ const Properties = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploadingImages(true);
+      const res = await uploadAPI.uploadPropertyImages(files, editingPropertyId);
+      
+      const uploadedUrls = res.data.imageUrls || [];
+      
+      // Get current list of images
+      const currentList = form.images
+        .split(',')
+        .map((img) => img.trim())
+        .filter((img) => img.length > 0);
+
+      const newList = [...currentList, ...uploadedUrls];
+      
+      setForm((prev) => ({ ...prev, images: newList.join(', ') }));
+    } catch (err) {
+      alert(err.message || 'Failed to upload images.');
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    const currentList = form.images
+      .split(',')
+      .map((img) => img.trim())
+      .filter((img) => img.length > 0);
+
+    const newList = currentList.filter((_, idx) => idx !== indexToRemove);
+    setForm((prev) => ({ ...prev, images: newList.join(', ') }));
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingPdf(true);
+      const res = await uploadAPI.uploadMealPdf(file, editingPropertyId);
+      
+      const pdfUrl = res.data.pdfUrl || '';
+      setForm((prev) => ({ ...prev, mealsPdf: pdfUrl }));
+    } catch (err) {
+      alert(err.message || 'Failed to upload PDF.');
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  const handleRemovePdf = () => {
+    setForm((prev) => ({ ...prev, mealsPdf: '' }));
   };
 
   const handleCreateSubmit = async (e) => {
@@ -154,6 +221,8 @@ const Properties = () => {
         tagline: form.tagline || undefined,
         collectionId: form.collectionId || undefined,
         amenities: form.amenities,
+        mealsDescription: form.mealsDescription || undefined,
+        mealsPdf: form.mealsPdf || undefined,
         status: 'PUBLISHED' // Automatically published
       };
 
@@ -172,6 +241,7 @@ const Properties = () => {
       setSubmitting(false);
     }
   };
+
 
   const handleApprove = async (id) => {
     if (!window.confirm('Approve and publish this property listing? It will immediately go live on the Roamigo marketplace.')) {
@@ -213,6 +283,23 @@ const Properties = () => {
       fetchProperties();
     } catch (err) {
       alert(err.message || 'Suspension failed.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleToggleFeatured = async (p) => {
+    try {
+      setActionLoading(p._id);
+      const updatedFeatured = !p.featured;
+      await adminAPI.updateProperty(p._id, { featured: updatedFeatured });
+      setProperties((prev) =>
+        prev.map((item) =>
+          item._id === p._id ? { ...item, featured: updatedFeatured } : item
+        )
+      );
+    } catch (err) {
+      alert(err.message || 'Failed to update featured status.');
     } finally {
       setActionLoading(null);
     }
@@ -330,7 +417,7 @@ const Properties = () => {
               <div className="relative h-56 w-full bg-gray-900">
                 {p.images?.[0] ? (
                   <img
-                    src={p.images[0]}
+                    src={getFullUploadUrl(p.images[0])}
                     alt={p.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                   />
@@ -345,9 +432,34 @@ const Properties = () => {
                     <span className="text-xs font-bold text-white bg-gray-950/80 border border-gray-800 px-3 py-1.5 rounded-xl font-mono">
                       {p.propertyType || 'VILLA'}
                     </span>
-                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border ${getStatusStyle(p.status)}`}>
-                      {p.status}
-                    </span>
+                    
+                    <div className="flex items-center gap-2">
+                      {/* Featured Toggle Icon */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleFeatured(p);
+                        }}
+                        disabled={actionLoading === p._id}
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer shadow-md duration-300 ${
+                          p.featured
+                            ? 'bg-amber-500/25 border-amber-500/40 text-amber-300 hover:bg-amber-500/40'
+                            : 'bg-gray-950/85 border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-700'
+                        }`}
+                        title={p.featured ? 'Featured listing (Click to remove)' : 'Mark listing as featured'}
+                      >
+                        {actionLoading === p._id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Star className={`w-3.5 h-3.5 transition-all duration-300 ${p.featured ? 'fill-amber-400 text-amber-400 scale-110' : ''}`} />
+                        )}
+                      </button>
+
+                      <span className={`text-[10px] px-2.5 py-1.5 rounded-xl font-bold uppercase tracking-wider border ${getStatusStyle(p.status)}`}>
+                        {p.status}
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white tracking-tight leading-snug">{p.title}</h3>
@@ -709,17 +821,149 @@ const Properties = () => {
                 </div>
               </div>
 
-              {/* Images */}
-              <div>
-                <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Photo URLs (comma-separated, min 1) *</label>
-                <textarea
-                  required
-                  rows={2}
-                  value={form.images}
-                  onChange={(e) => setForm({ ...form, images: e.target.value })}
-                  className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 font-mono text-xs"
-                  placeholder="https://images.unsplash.com/photo-1..., https://images.unsplash.com/photo-2..."
-                />
+              {/* Images Section */}
+              <div className="space-y-3">
+                <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wide">Property Images *</label>
+                
+                {/* Image Thumbnails Previews */}
+                {form.images.split(',').map((img) => img.trim()).filter(Boolean).length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 p-3 bg-gray-900/30 border border-gray-850 rounded-2xl">
+                    {form.images.split(',').map((img, idx) => {
+                      const trimmedImg = img.trim();
+                      return (
+                        <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border border-gray-800 bg-gray-900 group">
+                          <img
+                            src={getFullUploadUrl(trimmedImg)}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            className="absolute top-1 right-1 bg-red-950/80 border border-red-900/50 text-red-400 p-1 rounded-md hover:bg-red-900 hover:text-white transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Upload Zone & Manual URLs Area */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Upload Trigger Dropzone */}
+                  <div className="relative border border-dashed border-gray-800 hover:border-brand-500/50 rounded-2xl p-5 flex flex-col items-center justify-center bg-gray-900/20 transition-all min-h-[100px]">
+                    {uploadingImages ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
+                        <span className="text-xs text-gray-400">Uploading photos...</span>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center gap-2 cursor-pointer w-full text-center">
+                        <UploadCloud className="w-6 h-6 text-gray-500" />
+                        <div>
+                          <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Click to upload photos</span>
+                          <p className="text-[10px] text-gray-500 mt-0.5">Supports PNG, JPG, JPEG (Max 10MB per file)</p>
+                        </div>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Manual Comma-Separated URL input fallback */}
+                  <div>
+                    <label className="block text-gray-500 text-[10px] font-semibold mb-1 uppercase">Fallback: Edit Photo URLs list directly</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={form.images}
+                      onChange={(e) => setForm({ ...form, images: e.target.value })}
+                      className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-brand-500 font-mono"
+                      placeholder="Or enter image links separated by commas..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Meals & Menu Section */}
+              <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
+                <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Meals Menu & Dining Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Meal description text area */}
+                  <div>
+                    <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Meals & Culinary Description</label>
+                    <textarea
+                      value={form.mealsDescription}
+                      onChange={(e) => setForm({ ...form, mealsDescription: e.target.value })}
+                      rows={3}
+                      className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                      placeholder="Describe dining package, standard/custom kitchen, chef services, or meal rates..."
+                    />
+                  </div>
+
+                  {/* Meal PDF Menu Upload */}
+                  <div className="space-y-2">
+                    <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Property Meal Menu PDF</label>
+                    
+                    {form.mealsPdf ? (
+                      <div className="flex items-center justify-between p-3.5 bg-gray-900 border border-gray-800 rounded-xl">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <FileText className="w-5 h-5 text-red-400 shrink-0" />
+                          <div className="truncate">
+                            <span className="text-xs font-medium text-white truncate block">Meal Menu Document</span>
+                            <a
+                              href={getFullUploadUrl(form.mealsPdf)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-brand-400 hover:underline truncate block"
+                            >
+                              View PDF file
+                            </a>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemovePdf}
+                          className="p-1.5 bg-gray-800 hover:bg-red-950/40 hover:text-red-400 text-gray-400 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-900/30"
+                          title="Remove PDF"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative border border-dashed border-gray-800 hover:border-brand-500/50 rounded-xl p-5 flex flex-col items-center justify-center bg-gray-900/20 transition-all min-h-[90px]">
+                        {uploadingPdf ? (
+                          <div className="flex flex-col items-center gap-1.5">
+                            <Loader2 className="w-5 h-5 text-brand-500 animate-spin" />
+                            <span className="text-[11px] text-gray-400">Uploading PDF document...</span>
+                          </div>
+                        ) : (
+                          <label className="flex flex-col items-center gap-1.5 cursor-pointer w-full text-center">
+                            <FileText className="w-5 h-5 text-gray-500" />
+                            <div>
+                              <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Upload Meal Menu PDF</span>
+                              <p className="text-[9px] text-gray-500 mt-0.5">Supports PDF menu files up to 10MB</p>
+                            </div>
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              onChange={handlePdfUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Amenities */}
