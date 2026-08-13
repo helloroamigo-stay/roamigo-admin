@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://roamigo-backend.in/api/v1';
+// const API_BASE_URL = 'https://roamigo-backend.in/api/v1';
 // const API_BASE_URL = 'http://localhost:5000/api/v1';
+const API_BASE_URL = 'https://test.roamigo-backend.in/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -45,6 +46,8 @@ export const adminAPI = {
 
   // Properties
   getProperties: () => apiClient.get('/admin/properties'),
+  createProperty: (propertyData) => apiClient.post('/admin/properties', propertyData),
+  updateProperty: (id, propertyData) => apiClient.patch(`/admin/properties/${id}`, propertyData),
   approveProperty: (id) => apiClient.patch(`/admin/properties/${id}/approve`),
   rejectProperty: (id) => apiClient.patch(`/admin/properties/${id}/reject`),
   suspendProperty: (id) => apiClient.patch(`/admin/properties/${id}/suspend`),
@@ -72,4 +75,39 @@ export const adminAPI = {
   deleteCollection: (id) => apiClient.delete(`/admin/collections/${id}`),
 };
 
+export const getFullUploadUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const host = API_BASE_URL.replace('/api/v1', '');
+  return `${host}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
+export const uploadAPI = {
+  uploadPropertyImages: (files, propertyId) => {
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('images', files[i]);
+    }
+    const url = propertyId ? `/upload/property-images?propertyId=${propertyId}` : '/upload/property-images';
+    return apiClient.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  uploadMealPdf: (file, propertyId) => {
+    const formData = new FormData();
+    formData.append('mealPdf', file);
+    const url = propertyId ? `/upload/meal-pdf?propertyId=${propertyId}` : '/upload/meal-pdf';
+    return apiClient.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+};
+
 export default apiClient;
+
