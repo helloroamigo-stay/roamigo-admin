@@ -48,8 +48,7 @@ const Properties = () => {
     city: '',
     state: '',
     country: 'India',
-    lat: 15.4967,
-    lng: 73.8268,
+    googleMapsUrl: '',
     images: '',
     tagline: '',
     collectionId: '',
@@ -78,8 +77,7 @@ const Properties = () => {
       city: '',
       state: '',
       country: 'India',
-      lat: p.coordinates?.lat || 15.4967,
-      lng: p.coordinates?.lng || 73.8268,
+      googleMapsUrl: p.googleMapsUrl || '',
       images: p.images ? p.images.join(', ') : '',
       tagline: p.tagline || '',
       collectionId: p.collectionId?._id || p.collectionId || '',
@@ -214,9 +212,10 @@ const Properties = () => {
         state: form.cityId ? undefined : form.state,
         country: form.cityId ? undefined : form.country,
         coordinates: {
-          lat: parseFloat(form.lat) || 15.4967,
-          lng: parseFloat(form.lng) || 73.8268
+          lat: 15.4967,
+          lng: 73.8268
         },
+        googleMapsUrl: form.googleMapsUrl,
         images: imagesList,
         tagline: form.tagline || undefined,
         collectionId: form.collectionId || undefined,
@@ -795,29 +794,15 @@ const Properties = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Latitude Coordinates *</label>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      value={form.lat}
-                      onChange={(e) => setForm({ ...form, lat: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Longitude Coordinates *</label>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      value={form.lng}
-                      onChange={(e) => setForm({ ...form, lng: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Google Maps Link (Optional)</label>
+                  <input
+                    type="url"
+                    value={form.googleMapsUrl}
+                    onChange={(e) => setForm({ ...form, googleMapsUrl: e.target.value })}
+                    className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                    placeholder="e.g. https://maps.app.goo.gl/..."
+                  />
                 </div>
               </div>
 

@@ -1,22 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-display: 'Outfit', sans-serif;
 
-  --color-brand-50: #fbf8f3;
-  --color-brand-100: #f4edd9;
-  --color-brand-200: #e8dcb4;
-  --color-brand-300: #dac484;
-  --color-brand-400: #cfaa57;
-  --color-brand-500: #bf923c;
-  --color-brand-600: #a3752e;
-  --color-brand-700: #805625;
-  --color-brand-800: #64411f;
-  --color-brand-900: #4f331b;
-  --color-brand-950: #2d1b0d;
+  /* Brand colors mapped to Google Blue */
+  --color-brand-50: #e8f0fe;
+  --color-brand-100: #d2e3fc;
+  --color-brand-200: #aecbfa;
+  --color-brand-300: #7baaf7;
+  --color-brand-400: #4285f4;
+  --color-brand-500: #1a73e8;
+  --color-brand-600: #1557b0;
+  --color-brand-700: #174ea6;
+  --color-brand-800: #16428d;
+  --color-brand-900: #16428d;
+  --color-brand-950: #0d2554;
+
+  /* Amber colors mapped to Google Blue to match client-side design */
+  --color-amber-50: #e8f0fe;
+  --color-amber-100: #d2e3fc;
+  --color-amber-200: #aecbfa;
+  --color-amber-300: #7baaf7;
+  --color-amber-400: #4285f4;
+  --color-amber-500: #1a73e8;
+  --color-amber-600: #1557b0;
+  --color-amber-700: #174ea6;
+  --color-amber-800: #16428d;
+  --color-amber-900: #16428d;
+  --color-amber-950: #0d2554;
 }
 
 body {

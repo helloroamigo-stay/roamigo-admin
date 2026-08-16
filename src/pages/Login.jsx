@@ -32,7 +32,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-[#070b13] relative overflow-hidden font-sans">
       {/* Background Decorative Blobs */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[60%] rounded-full bg-brand-900/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-[55%] h-[60%] rounded-full bg-[#bf923c]/10 blur-[130px] pointer-events-none"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[55%] h-[60%] rounded-full bg-brand-500/10 blur-[130px] pointer-events-none"></div>
 
       <div className="w-full max-w-md px-6 py-12 relative z-10">
         {/* Brand Header */}
