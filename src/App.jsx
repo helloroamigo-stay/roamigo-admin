@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
@@ -7,12 +7,15 @@ import Dashboard from './pages/Dashboard';
 import Destinations from './pages/Destinations';
 import Providers from './pages/Providers';
 import Properties from './pages/Properties';
+import PropertyReview from './pages/PropertyReview';
 import Bookings from './pages/Bookings';
 import Login from './pages/Login';
 import { Loader2 } from 'lucide-react';
+import { ConfigProvider, theme as antdTheme } from 'antd';
 
 const AdminLayout = () => {
   const { user, loading } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   if (loading) {
     return (
@@ -28,16 +31,17 @@ const AdminLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#070b13] text-[#f3f4f6] flex font-sans">
-      <Sidebar />
-      <div className="flex-1 flex flex-col pl-68 min-h-screen relative z-10">
-        <Header />
+    <div className="min-h-screen bg-[#070b13] text-[#f3f4f6] flex font-sans overflow-x-hidden">
+      <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <div className="flex-1 flex flex-col lg:pl-68 pl-0 min-h-screen relative z-10 w-full overflow-x-hidden">
+        <Header onOpenMobile={() => setMobileOpen(true)} />
         <main className="flex-1 bg-[#070b13]/60 relative">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/destinations" element={<Destinations />} />
             <Route path="/providers" element={<Providers />} />
             <Route path="/properties" element={<Properties />} />
+            <Route path="/properties/review/:id" element={<PropertyReview />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -49,11 +53,23 @@ const AdminLayout = () => {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AdminLayout />
-      </AuthProvider>
-    </Router>
+    <ConfigProvider
+      theme={{
+        algorithm: antdTheme.darkAlgorithm,
+        token: {
+          colorPrimary: '#6366f1',
+          borderRadius: 12,
+          colorBgContainer: '#111827',
+          fontFamily: 'inherit',
+        },
+      }}
+    >
+      <Router>
+        <AuthProvider>
+          <AdminLayout />
+        </AuthProvider>
+      </Router>
+    </ConfigProvider>
   );
 }
 

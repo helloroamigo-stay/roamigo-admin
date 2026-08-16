@@ -1,27 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Compass, Mail, Lock, ShieldAlert, Loader2 } from 'lucide-react';
+import { Compass, Mail, Lock, ShieldAlert } from 'lucide-react';
+import { Form, Input, Button } from 'antd';
 
 const Login = () => {
   const { login, error: authError, setError } = useAuth();
-  const [email, setEmail] = useState('admin@gmail.com');
-  const [password, setPassword] = useState('admin@123');
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
+  const [form] = Form.useForm();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setFormError('Please enter both email and password.');
-      return;
-    }
-
+  const handleSubmit = async (values) => {
     try {
       setLoading(true);
       setFormError('');
-      await login(email, password);
+      await login(values.email, values.password);
     } catch (err) {
-
       setFormError(err.message || 'Login failed.');
     } finally {
       setLoading(false);
@@ -57,70 +50,62 @@ const Login = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-gray-400 text-sm font-medium mb-2" htmlFor="email">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500">
-                  <Mail className="w-5 h-5" />
-                </span>
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="admin@roamigo.in"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setFormError('');
-                    setError(null);
-                  }}
-                  className="w-full pl-12 pr-4 py-3.5 bg-gray-900/50 border border-gray-800 rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-all text-sm"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-sm font-medium mb-2" htmlFor="password">
-                Password
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500">
-                  <Lock className="w-5 h-5" />
-                </span>
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setFormError('');
-                    setError(null);
-                  }}
-                  className="w-full pl-12 pr-4 py-3.5 bg-gray-900/50 border border-gray-800 rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-all text-sm"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-2 py-4 px-4 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white rounded-2xl font-semibold shadow-lg shadow-brand-600/10 hover:shadow-brand-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ email: 'admin@gmail.com', password: 'admin@123' }}
+            onFinish={handleSubmit}
+            requiredMark={false}
+            onChange={() => {
+              setFormError('');
+              setError(null);
+            }}
+            className="space-y-2"
+          >
+            <Form.Item
+              label={<span className="text-gray-400 text-sm font-medium">Email Address</span>}
+              name="email"
+              rules={[
+                { required: true, message: 'Please enter email address' },
+                { type: 'email', message: 'Please enter a valid email' }
+              ]}
+              className="mb-4"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                'Sign In to Dashboard'
-              )}
-            </button>
-          </form>
+              <Input
+                prefix={<Mail className="w-4 h-4 text-gray-500 mr-1.5" />}
+                placeholder="admin@roamigo.in"
+                size="large"
+                className="bg-gray-900/50 border-gray-800 text-white placeholder-gray-600 rounded-2xl py-3 text-sm hover:border-brand-500 focus:border-brand-500"
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={<span className="text-gray-400 text-sm font-medium">Password</span>}
+              name="password"
+              rules={[{ required: true, message: 'Please enter password' }]}
+              className="mb-6"
+            >
+              <Input.Password
+                prefix={<Lock className="w-4 h-4 text-gray-500 mr-1.5" />}
+                placeholder="••••••••"
+                size="large"
+                className="bg-gray-900/50 border-gray-800 text-white placeholder-gray-600 rounded-2xl py-3 text-sm hover:border-brand-500 focus:border-brand-500"
+              />
+            </Form.Item>
+
+            <Form.Item className="mb-0">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                block
+                size="large"
+                className="h-12 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white font-semibold border-none shadow-lg shadow-brand-600/10"
+              >
+                Sign In to Dashboard
+              </Button>
+            </Form.Item>
+          </Form>
         </div>
 
         {/* Quick Help note */}
@@ -134,3 +119,4 @@ const Login = () => {
 };
 
 export default Login;
+
