@@ -46,8 +46,10 @@ export const adminAPI = {
 
   // Properties
   getProperties: () => apiClient.get('/admin/properties'),
+  getPropertyById: (id) => apiClient.get(`/admin/properties/${id}`),
   createProperty: (propertyData) => apiClient.post('/admin/properties', propertyData),
   updateProperty: (id, propertyData) => apiClient.patch(`/admin/properties/${id}`, propertyData),
+  updatePropertyStatus: (id, status) => apiClient.patch(`/admin/properties/${id}/status`, { status }),
   approveProperty: (id) => apiClient.patch(`/admin/properties/${id}/approve`),
   rejectProperty: (id) => apiClient.patch(`/admin/properties/${id}/reject`),
   suspendProperty: (id) => apiClient.patch(`/admin/properties/${id}/suspend`),
