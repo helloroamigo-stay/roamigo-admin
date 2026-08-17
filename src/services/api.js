@@ -13,9 +13,23 @@ const apiClient = axios.create({
 });
 
 
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('roamigo_admin_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('roamigo_admin_token');
+    }
 
     const message = error.response?.data?.message || 'Something went wrong';
     const code = error.response?.data?.errorCode || 'API_ERROR';

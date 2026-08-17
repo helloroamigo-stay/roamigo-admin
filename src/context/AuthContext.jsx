@@ -42,9 +42,13 @@ export const AuthProvider = ({ children }) => {
       
       if (res.success && res.data.user) {
         if (res.data.user.role === 'ADMIN') {
+          if (res.data.accessToken) {
+            localStorage.setItem('roamigo_admin_token', res.data.accessToken);
+          }
           setUser(res.data.user);
           return res.data.user;
         } else {
+          localStorage.removeItem('roamigo_admin_token');
           await authAPI.logout();
           throw new Error('Access Denied: Admin role required.');
         }
@@ -61,6 +65,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    localStorage.removeItem('roamigo_admin_token');
     try {
       setLoading(true);
       await authAPI.logout();
