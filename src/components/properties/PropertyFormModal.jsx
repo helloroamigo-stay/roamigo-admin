@@ -13,18 +13,34 @@ import {
 import { getFullUploadUrl } from '../../services/api';
 
 const STANDARD_AMENITIES = [
-  'Private Heated Infinity Pool',
-  'Dedicated Executive Chef',
-  '24/7 Butler Service',
-  'Private Beach Path',
-  'Helipad Access',
-  'High-Speed Starlink Wi-Fi',
-  'Steam Room & Sauna',
-  'Pet Friendly Yard',
-  'Air Conditioning',
-  'Fully Equipped Kitchen',
-  'Barbecue Grill',
-  'Home Theatre Room'
+  'Pet Friendly',
+  'Private Pool',
+  'Indoor Games',
+  'Outdoor Games',
+  'Lawn',
+  'BBQ',
+  'Music Speaker',
+  'Gazebo',
+  'Wi-fi',
+  'TV',
+  'Kitchen(Only Light Cooking)',
+  'Kitchen Extra Cost',
+  'Refrigerator',
+  'Indoor Parking',
+  'Outdoor Parking',
+  'Balcony/ Terrace',
+  'Water Purifier',
+  'Driver/Staff Accommodation',
+  'CCTV',
+  'Fire Extinguisher',
+  'Work Desk',
+  'Bathroom',
+  'Geyser',
+  'Extra Mattress',
+  'Toiletries',
+  'Wardrobe',
+  'Towels',
+  'Outdoor Sitting Area'
 ];
 
 export const PropertyFormModal = ({
