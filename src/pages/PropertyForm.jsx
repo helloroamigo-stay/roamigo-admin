@@ -99,7 +99,8 @@ const PropertyForm = () => {
     mealsPdf: '',
     spaces: [],
     homeTruths: [],
-    nearbyPlaces: []
+    nearbyPlaces: [],
+    cancellationPolicy: ''
   });
 
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -184,7 +185,8 @@ const PropertyForm = () => {
         mealsPdf: p.mealsPdf || '',
         spaces: p.spaces && p.spaces.length > 0 ? p.spaces : [],
         homeTruths: p.homeTruths && p.homeTruths.length > 0 ? p.homeTruths : [],
-        nearbyPlaces: p.nearbyPlaces && p.nearbyPlaces.length > 0 ? p.nearbyPlaces : []
+        nearbyPlaces: p.nearbyPlaces && p.nearbyPlaces.length > 0 ? p.nearbyPlaces : [],
+        cancellationPolicy: p.cancellationPolicy || ''
       });
     } catch (err) {
       console.error('Error fetching property for edit:', err);
@@ -312,7 +314,7 @@ const PropertyForm = () => {
   const handleAddNearby = () => {
     setForm(prev => ({
       ...prev,
-      nearbyPlaces: [...(prev.nearbyPlaces || []), { name: '', distance: '' }]
+      nearbyPlaces: [...(prev.nearbyPlaces || []), { name: '', distance: '', type: 'cafe' }]
     }));
   };
 
@@ -352,7 +354,8 @@ const PropertyForm = () => {
         cuisines: typeof form.cuisines === 'string'
           ? form.cuisines.split(',').map(s => s.trim()).filter(Boolean)
           : (form.cuisines || []),
-        dietaryNotes: form.dietaryNotes || ''
+        dietaryNotes: form.dietaryNotes || '',
+        cancellationPolicy: form.cancellationPolicy || ''
       };
 
       if (isEditMode) {
@@ -1016,30 +1019,62 @@ const PropertyForm = () => {
                     </div>
 
                     {(form.nearbyPlaces || []).map((place, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
+                      <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
                         <input
                           type="text"
                           value={place.name}
                           onChange={(e) => handleNearbyChange(idx, 'name', e.target.value)}
-                          placeholder="e.g. Vagator Beach"
-                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900"
+                          placeholder="Place Name (e.g. Vagator Beach)"
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900"
                         />
                         <input
                           type="text"
                           value={place.distance}
                           onChange={(e) => handleNearbyChange(idx, 'distance', e.target.value)}
-                          placeholder="e.g. 1.2 km"
-                          className="w-36 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+                          placeholder="Distance (e.g. 1.2 km)"
+                          className="w-full sm:w-32 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
                         />
+                        <select
+                          value={place.type || 'cafe'}
+                          onChange={(e) => handleNearbyChange(idx, 'type', e.target.value)}
+                          className="w-full sm:w-44 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer"
+                        >
+                          <option value="cafe">Cafe</option>
+                          <option value="restaurant">Restaurant</option>
+                          <option value="beach">Beach</option>
+                          <option value="nature">Nature & Parks</option>
+                          <option value="airport">Airport & Transit</option>
+                          <option value="attraction">Tourist Attraction</option>
+                          <option value="temple">Temple & Worship</option>
+                          <option value="shopping">Shopping & Market</option>
+                        </select>
                         <button
                           type="button"
                           onClick={() => handleRemoveNearby(idx)}
-                          className="p-2 text-slate-400 hover:text-red-600 bg-white border border-slate-200 rounded-xl"
+                          className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 rounded-xl transition-colors cursor-pointer self-end sm:self-center"
+                          title="Remove Place"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Cancellation Policy */}
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <h4 className="text-sm font-bold text-slate-900">Cancellation Policy</h4>
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Cancellation Policy & Refund Terms
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={form.cancellationPolicy}
+                        onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
+                        placeholder="e.g. Full refund up to 7 days before check-in. 50% refund up to 48 hours before check-in. Cancellations made within 48 hours of check-in are non-refundable."
+                      />
+                    </div>
                   </div>
                 </div>
               )

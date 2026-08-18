@@ -135,7 +135,7 @@ const Enquiries = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Enquiries</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Booking Enquiries</span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</h3>
           </div>
           <div className="p-3 bg-brand-50 text-brand-600 rounded-xl border border-brand-100">
@@ -145,7 +145,7 @@ const Enquiries = () => {
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Pending Review</span>
+            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Pending Booking Review</span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{pendingCount}</h3>
           </div>
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
@@ -155,7 +155,7 @@ const Enquiries = () => {
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Confirmed</span>
+            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Confirmed Booking</span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{confirmedCount}</h3>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
@@ -165,7 +165,7 @@ const Enquiries = () => {
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs font-bold text-red-700 uppercase tracking-wider">Cancelled</span>
+            <span className="text-xs font-bold text-red-700 uppercase tracking-wider">Cancelled Booking</span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{cancelledCount}</h3>
           </div>
           <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100">
@@ -198,11 +198,10 @@ const Enquiries = () => {
             <button
               key={tab.id}
               onClick={() => setStatusFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                statusFilter === tab.id
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${statusFilter === tab.id
                   ? 'bg-brand-600 text-white shadow-xs'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
