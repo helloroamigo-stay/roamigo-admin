@@ -93,6 +93,8 @@ const PropertyForm = () => {
     collectionId: '',
     amenities: [],
     mealsDescription: '',
+    cuisines: '',
+    dietaryNotes: '',
     mealsImage: '',
     mealsPdf: '',
     spaces: [],
@@ -176,6 +178,8 @@ const PropertyForm = () => {
         collectionId: p.collectionId?._id || p.collectionId || '',
         amenities: p.amenities || [],
         mealsDescription: p.mealsDescription || '',
+        cuisines: p.cuisines ? (Array.isArray(p.cuisines) ? p.cuisines.join(', ') : p.cuisines) : '',
+        dietaryNotes: p.dietaryNotes || '',
         mealsImage: p.mealsImage || '',
         mealsPdf: p.mealsPdf || '',
         spaces: p.spaces && p.spaces.length > 0 ? p.spaces : [],
@@ -344,7 +348,11 @@ const PropertyForm = () => {
         guestsMax: Number(form.guestsMax),
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
-        images: form.images
+        images: form.images,
+        cuisines: typeof form.cuisines === 'string'
+          ? form.cuisines.split(',').map(s => s.trim()).filter(Boolean)
+          : (form.cuisines || []),
+        dietaryNotes: form.dietaryNotes || ''
       };
 
       if (isEditMode) {
@@ -850,6 +858,32 @@ const PropertyForm = () => {
                         onChange={(e) => setForm({ ...form, mealsDescription: e.target.value })}
                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900"
                         placeholder="Describe available meal plans, private chef services, breakfast inclusions..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Available Cuisines (Comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={form.cuisines}
+                        onChange={(e) => setForm({ ...form, cuisines: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-medium"
+                        placeholder="e.g. Traditional Regional Cuisines, Modern Italian & Pastas, Continental Grills"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Dietary Notes & Concierge Instructions (Modal Details)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={form.dietaryNotes}
+                        onChange={(e) => setForm({ ...form, dietaryNotes: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
+                        placeholder="e.g. Please enter details such as allergies, special diets (keto, vegan, diabetic) in concierge field during checkout..."
                       />
                     </div>
 
