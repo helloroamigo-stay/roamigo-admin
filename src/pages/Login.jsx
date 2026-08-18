@@ -4,7 +4,7 @@ import { Compass, Mail, Lock, ShieldAlert } from 'lucide-react';
 import { Form, Input, Button } from 'antd';
 
 const Login = () => {
-  const { login, error: authError, setError } = useAuth();
+  const { login, error: authError, sessionExpiredNotice, setError, setSessionExpiredNotice } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [form] = Form.useForm();
@@ -20,6 +20,8 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  const displayMessage = formError || sessionExpiredNotice || authError;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#070b13] relative overflow-hidden font-sans">
@@ -43,10 +45,14 @@ const Login = () => {
         <div className="bg-[#111827]/60 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-2xl shadow-black/50">
           <h2 className="text-xl font-semibold text-white mb-6">Sign In</h2>
 
-          {(formError || authError) && (
-            <div className="flex items-start gap-3 bg-red-950/40 border border-red-900/50 rounded-2xl p-4 mb-6 text-red-300 text-sm">
-              <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-              <div>{formError || authError}</div>
+          {displayMessage && (
+            <div className={`flex items-start gap-3 rounded-2xl p-4 mb-6 text-sm ${
+              sessionExpiredNotice 
+                ? 'bg-amber-950/40 border border-amber-500/40 text-amber-300'
+                : 'bg-red-950/40 border border-red-900/50 text-red-300'
+            }`}>
+              <ShieldAlert className={`w-5 h-5 shrink-0 mt-0.5 ${sessionExpiredNotice ? 'text-amber-400' : 'text-red-400'}`} />
+              <div>{displayMessage}</div>
             </div>
           )}
 

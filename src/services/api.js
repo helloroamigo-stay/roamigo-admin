@@ -28,7 +28,17 @@ apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
+      const hadToken = !!localStorage.getItem('roamigo_admin_token');
       localStorage.removeItem('roamigo_admin_token');
+
+      // Notify application of session/token expiration
+      if (hadToken && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('session_expired', {
+            detail: { message: 'Your token has expired. Please log in again to continue.' }
+          })
+        );
+      }
     }
 
     const message = error.response?.data?.message || 'Something went wrong';
@@ -43,6 +53,7 @@ export const authAPI = {
   login: (email, password) => apiClient.post('/auth/login', { email, password }),
   logout: () => apiClient.post('/auth/logout'),
   getMe: () => apiClient.get('/auth/me'),
+  checkHealth: () => apiClient.get('/health'),
 };
 
 export const adminAPI = {

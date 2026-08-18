@@ -5,6 +5,7 @@ import {
   UserCheck, 
   Home, 
   Calendar, 
+  HelpCircle,
   DollarSign, 
   Activity,
   ArrowRight,
@@ -126,28 +127,32 @@ const Dashboard = () => {
       value: `₹${stats.totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
       subtitle: 'From confirmed gateway orders',
       icon: DollarSign,
-      color: 'from-emerald-500/10 to-teal-500/10 text-emerald-400 border-emerald-900/30'
+      color: 'from-emerald-500/10 to-teal-500/10 text-emerald-400 border-emerald-900/30 hover:border-emerald-500/50',
+      link: '/payments'
     },
     {
-      title: 'System Bookings',
+      title: 'Guest Enquiries',
       value: stats.bookingsCount,
-      subtitle: 'Total rentals reserved',
-      icon: Calendar,
-      color: 'from-blue-500/10 to-indigo-500/10 text-blue-400 border-blue-900/30'
+      subtitle: 'Total guest requests received',
+      icon: HelpCircle,
+      color: 'from-blue-500/10 to-indigo-500/10 text-blue-400 border-blue-900/30 hover:border-blue-500/50',
+      link: '/enquiries'
     },
     {
       title: 'Active Properties',
       value: stats.propertiesCount,
       subtitle: 'Villas & retreats listed',
       icon: Home,
-      color: 'from-amber-500/10 to-brand-500/10 text-brand-400 border-brand-900/30'
+      color: 'from-amber-500/10 to-brand-500/10 text-brand-400 border-brand-900/30 hover:border-brand-500/50',
+      link: '/properties'
     },
     {
       title: 'Registered Users',
       value: stats.usersCount,
       subtitle: 'Guests & service providers',
       icon: Users,
-      color: 'from-purple-500/10 to-pink-500/10 text-purple-400 border-purple-900/30'
+      color: 'from-purple-500/10 to-pink-500/10 text-purple-400 border-purple-900/30 hover:border-purple-500/50',
+      link: '/users'
     }
   ];
 
@@ -191,21 +196,26 @@ const Dashboard = () => {
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
-            <div 
+            <Link 
               key={idx} 
-              className={`bg-gradient-to-br ${card.color} border rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.02] transition-all duration-300 shadow-md`}
+              to={card.link}
+              className={`bg-gradient-to-br ${card.color} border rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.03] transition-all duration-300 shadow-md hover:shadow-xl group cursor-pointer relative overflow-hidden`}
             >
               <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{card.title}</span>
-                <div className="p-2.5 bg-gray-950/40 rounded-xl">
+                <span className="text-xs font-semibold text-gray-400 group-hover:text-white transition-colors uppercase tracking-wider">{card.title}</span>
+                <div className="p-2.5 bg-gray-950/40 group-hover:bg-gray-950/70 rounded-xl transition-all flex items-center gap-1">
                   <Icon className="w-5 h-5" />
+                  <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 text-white" />
                 </div>
               </div>
               <div>
                 <h3 className="text-3xl font-display font-bold text-white mb-1">{card.value}</h3>
-                <p className="text-xs text-gray-500">{card.subtitle}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">{card.subtitle}</p>
+                  <span className="text-[10px] font-semibold text-gray-400 group-hover:text-white underline underline-offset-2 opacity-0 group-hover:opacity-100 transition-opacity">View All &rarr;</span>
+                </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -317,14 +327,14 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Side Panel: Recent Bookings list */}
+        {/* Side Panel: Recent Enquiries list */}
         <div className="bg-[#0f172a] border border-gray-800 rounded-3xl p-6 flex flex-col h-full">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-white">Recent Bookings</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Live reservations stream</p>
+              <h3 className="text-lg font-bold text-white">Recent Enquiries</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Live guest requests stream</p>
             </div>
-            <Link to="/bookings" className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1">
+            <Link to="/enquiries" className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1">
               <span>View All</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -332,7 +342,7 @@ const Dashboard = () => {
 
           {stats.recentBookings.length === 0 ? (
             <div className="flex-1 flex items-center justify-center py-12 text-center text-gray-500 text-sm border border-dashed border-gray-800 rounded-2xl">
-              No bookings logged in the system.
+              No enquiries logged in the system.
             </div>
           ) : (
             <div className="flex-1 space-y-4">

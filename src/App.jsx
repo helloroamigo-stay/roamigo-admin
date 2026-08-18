@@ -8,7 +8,9 @@ import Destinations from './pages/Destinations';
 import Providers from './pages/Providers';
 import Properties from './pages/Properties';
 import PropertyReview from './pages/PropertyReview';
-import Bookings from './pages/Bookings';
+import Enquiries from './pages/Enquiries';
+import Payments from './pages/Payments';
+import Users from './pages/Users';
 import Login from './pages/Login';
 import { Loader2 } from 'lucide-react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
@@ -42,7 +44,10 @@ const AdminLayout = () => {
             <Route path="/providers" element={<Providers />} />
             <Route path="/properties" element={<Properties />} />
             <Route path="/properties/review/:id" element={<PropertyReview />} />
-            <Route path="/bookings" element={<Bookings />} />
+            <Route path="/enquiries" element={<Enquiries />} />
+            <Route path="/bookings" element={<Navigate to="/enquiries" replace />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/users" element={<Users />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

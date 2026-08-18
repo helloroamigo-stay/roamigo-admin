@@ -6,8 +6,11 @@ import {
   LayoutDashboard,
   Map,
   UserCheck,
+  Users,
   Home,
   CreditCard,
+  HelpCircle,
+  Calendar,
   LogOut,
   X
 } from 'lucide-react';
@@ -28,7 +31,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
     { name: 'Destinations & Collections', path: '/destinations', icon: Map },
     { name: 'Providers', path: '/providers', icon: UserCheck },
     { name: 'Properties', path: '/properties', icon: Home },
-    { name: 'Payments & Payouts', path: '/bookings', icon: CreditCard },
+    { name: 'Guest Enquiries', path: '/enquiries', icon: HelpCircle },
+    { name: 'Payments & Gateways', path: '/payments', icon: CreditCard },
+    { name: 'Registered Users', path: '/users', icon: Users },
   ];
 
   return (
