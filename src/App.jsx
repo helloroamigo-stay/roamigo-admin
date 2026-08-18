@@ -21,9 +21,9 @@ const AdminLayout = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070b13] flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
-        <p className="text-gray-400 text-sm font-medium">Securing session gateway...</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-brand-600 animate-spin mb-4" />
+        <p className="text-slate-500 text-sm font-medium">Securing session gateway...</p>
       </div>
     );
   }
@@ -33,11 +33,11 @@ const AdminLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#070b13] text-[#f3f4f6] flex font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans overflow-x-hidden">
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 flex flex-col lg:pl-68 pl-0 min-h-screen relative z-10 w-full overflow-x-hidden">
         <Header onOpenMobile={() => setMobileOpen(true)} />
-        <main className="flex-1 bg-[#070b13]/60 relative">
+        <main className="flex-1 bg-slate-50/80 relative">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/destinations" element={<Destinations />} />
@@ -60,11 +60,13 @@ function App() {
   return (
     <ConfigProvider
       theme={{
-        algorithm: antdTheme.darkAlgorithm,
+        algorithm: antdTheme.defaultAlgorithm,
         token: {
-          colorPrimary: '#6366f1',
+          colorPrimary: '#1a73e8',
           borderRadius: 12,
-          colorBgContainer: '#111827',
+          colorBgContainer: '#ffffff',
+          colorText: '#0f172a',
+          colorBorder: '#e2e8f0',
           fontFamily: 'inherit',
         },
       }}

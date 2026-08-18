@@ -131,15 +131,15 @@ export const PropertyFormModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0f172a] border border-gray-800 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-gray-800 flex justify-between items-center shrink-0">
-          <h3 className="text-lg font-bold text-white">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50/50">
+          <h3 className="text-lg font-bold text-slate-900">
             {editingPropertyId ? 'Edit Property Listing' : 'Add New Property Listing'}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-all cursor-pointer text-sm font-semibold"
+            className="text-slate-400 hover:text-slate-700 transition-all cursor-pointer text-sm font-semibold p-1 hover:bg-slate-100 rounded-lg"
           >
             Cancel
           </button>

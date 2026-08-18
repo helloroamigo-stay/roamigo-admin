@@ -10,7 +10,6 @@ import {
   Home,
   CreditCard,
   HelpCircle,
-  Calendar,
   LogOut,
   X
 } from 'lucide-react';
@@ -42,33 +41,34 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-30 lg:hidden transition-opacity duration-300 cursor-pointer"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 lg:hidden transition-opacity duration-300 cursor-pointer"
         />
       )}
 
       <aside
-        className={`w-68 bg-[#0f172a] border-r border-gray-800 flex flex-col h-screen fixed left-0 top-0 z-40 font-sans transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
-          }`}
+        className={`w-68 bg-white border-r border-slate-200 flex flex-col h-screen fixed left-0 top-0 z-40 font-sans shadow-xs transition-transform duration-300 ease-in-out ${
+          mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        }`}
       >
         {/* Brand Logo Header */}
-        <div className="h-20 border-b border-gray-800 flex items-center justify-between px-6">
+        <div className="h-20 border-b border-slate-200 flex items-center justify-between px-6 bg-slate-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10  flex items-center justify-center shadow-md shadow-brand-500/10">
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-50 border border-brand-200 shadow-xs">
               <img
                 src={"/logo-xs.png"}
-                alt="Avatar"
-                className="w-9 h-9 object-cover ring-2 ring-brand-500/20"
+                alt="Logo"
+                className="w-8 h-8 object-cover"
               />
             </div>
             <div>
-              <h1 className="text-lg font-display font-bold text-white tracking-tight">Roamigo</h1>
-              <span className="text-[10px] text-brand-400 font-semibold tracking-wider uppercase">Admin Portal</span>
+              <h1 className="text-lg font-display font-bold text-slate-900 tracking-tight">Roamigo</h1>
+              <span className="text-[10px] text-brand-600 font-bold tracking-wider uppercase">Admin Portal</span>
             </div>
           </div>
 
           <button
             onClick={() => setMobileOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-white p-1 rounded-lg transition-all cursor-pointer"
+            className="lg:hidden text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
             aria-label="Close Sidebar"
           >
             <X className="w-5 h-5" />
@@ -85,9 +85,10 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                 to={item.path}
                 onClick={() => setMobileOpen && setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${isActive
-                    ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
-                    : 'text-gray-400 hover:bg-gray-800/40 hover:text-gray-200 border border-transparent'
+                  `flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${
+                    isActive
+                      ? 'bg-brand-50 text-brand-600 border border-brand-200/80 shadow-xs font-semibold'
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent'
                   }`
                 }
               >
@@ -99,28 +100,28 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
         </nav>
 
         {/* Admin User Card & Logout */}
-        <div className="p-4 border-t border-gray-800 bg-[#0c1222]/80">
-          <div className="flex items-center gap-3 mb-4 px-2">
+        <div className="p-4 border-t border-slate-200 bg-slate-50/80">
+          <div className="flex items-center gap-3 mb-3.5 px-2">
             {user?.avatar ? (
               <img
-                src={"/logo-xs.png"}
+                src={user.avatar}
                 alt="Avatar"
-                className="w-9 h-9  object-cover ring-2 ring-brand-500/20"
+                className="w-9 h-9 rounded-full object-cover ring-2 ring-brand-500/20"
               />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-brand-600/20 text-brand-400 flex items-center justify-center font-bold text-sm">
+              <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm">
                 {user?.name?.slice(0, 2).toUpperCase() || 'AD'}
               </div>
             )}
             <div className="truncate">
-              <div className="text-xs font-semibold text-white truncate">{user?.name}</div>
-              <div className="text-[10px] text-gray-500 truncate">{user?.email}</div>
+              <div className="text-xs font-semibold text-slate-900 truncate">{user?.name}</div>
+              <div className="text-[10px] text-slate-500 truncate">{user?.email}</div>
             </div>
           </div>
 
           <button
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-800/50 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 text-gray-400 border border-gray-850 rounded-xl text-xs font-medium cursor-pointer transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer shadow-xs transition-all duration-200"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out</span>
