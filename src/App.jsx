@@ -8,6 +8,7 @@ import Destinations from './pages/Destinations';
 import Providers from './pages/Providers';
 import Properties from './pages/Properties';
 import PropertyReview from './pages/PropertyReview';
+import PropertyForm from './pages/PropertyForm';
 import Enquiries from './pages/Enquiries';
 import Payments from './pages/Payments';
 import Users from './pages/Users';
@@ -43,6 +44,8 @@ const AdminLayout = () => {
             <Route path="/destinations" element={<Destinations />} />
             <Route path="/providers" element={<Providers />} />
             <Route path="/properties" element={<Properties />} />
+            <Route path="/properties/new" element={<PropertyForm />} />
+            <Route path="/properties/edit/:id" element={<PropertyForm />} />
             <Route path="/properties/review/:id" element={<PropertyReview />} />
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/bookings" element={<Navigate to="/enquiries" replace />} />

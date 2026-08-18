@@ -1,11 +1,11 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 
 export const PropertyTabs = ({
   activeTab,
   setActiveTab,
-  propertiesCount,
-  onOpenCreateModal
+  propertiesCount
 }) => {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
@@ -50,13 +50,13 @@ export const PropertyTabs = ({
         </button>
       </div>
 
-      <button
-        onClick={onOpenCreateModal}
+      <Link
+        to="/properties/new"
         className="flex items-center gap-2 py-3 px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-sm font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer w-fit"
       >
         <Plus className="w-4.5 h-4.5" />
         <span>Add Property</span>
-      </button>
+      </Link>
     </div>
   );
 };
