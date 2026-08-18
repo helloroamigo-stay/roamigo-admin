@@ -25,7 +25,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
   const menuItems = [
     { name: 'Overview', path: '/', icon: LayoutDashboard },
-    { name: 'Destinations', path: '/destinations', icon: Map },
+    { name: 'Destinations & Collections', path: '/destinations', icon: Map },
     { name: 'Providers', path: '/providers', icon: UserCheck },
     { name: 'Properties', path: '/properties', icon: Home },
     { name: 'Payments & Payouts', path: '/bookings', icon: CreditCard },
