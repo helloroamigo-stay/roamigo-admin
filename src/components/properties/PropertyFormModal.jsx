@@ -278,7 +278,7 @@ export const PropertyFormModal = ({
             </div>
 
             <div>
-              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Max Kids</label>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Kids</label>
               <input
                 type="number"
                 value={form.kidsCount || 0}
@@ -404,7 +404,7 @@ export const PropertyFormModal = ({
           {/* Images Section */}
           <div className="space-y-3">
             <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wide">Property Images *</label>
-            
+
             {/* Image Thumbnails Previews */}
             {form.images.split(',').map((img) => img.trim()).filter(Boolean).length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 p-3 bg-gray-900/30 border border-gray-850 rounded-2xl">
@@ -475,7 +475,7 @@ export const PropertyFormModal = ({
           {/* Meals & Menu Section */}
           <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
             <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Meals Menu & Dining Details</h4>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Meal description text area */}
               <div>
@@ -492,7 +492,7 @@ export const PropertyFormModal = ({
               {/* Meal PDF Menu Upload */}
               <div className="space-y-2">
                 <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Property Meal Menu PDF</label>
-                
+
                 {form.mealsPdf ? (
                   <div className="flex items-center justify-between p-3.5 bg-gray-900 border border-gray-800 rounded-xl">
                     <div className="flex items-center gap-2.5 min-w-0">
