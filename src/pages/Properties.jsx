@@ -183,7 +183,9 @@ const Properties = () => {
 
       const validNearby = (form.nearbyPlaces || []).filter(p => p.name && p.name.trim() !== '');
       const validSpaces = (form.spaces || []).filter(s => s.title && s.title.trim() !== '');
-      const validHomeTruths = (form.homeTruths || []).filter(t => t && t.trim() !== '');
+      const validHomeTruths = typeof form.homeTruths === 'string'
+        ? form.homeTruths.split('\n').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(form.homeTruths) ? form.homeTruths.filter(t => t && t.trim() !== '') : []);
 
       const propertyData = {
         providerId: form.providerId || undefined,

@@ -222,9 +222,8 @@ const PropertyReview = () => {
               <button
                 key={idx}
                 onClick={() => setActiveImageIndex(idx)}
-                className={`relative w-28 aspect-video rounded-xl overflow-hidden border cursor-pointer transition-all shrink-0 ${
-                  activeImageIndex === idx ? 'border-brand-600 ring-2 ring-brand-500/20' : 'border-slate-200 opacity-70 hover:opacity-100'
-                }`}
+                className={`relative w-28 aspect-video rounded-xl overflow-hidden border cursor-pointer transition-all shrink-0 ${activeImageIndex === idx ? 'border-brand-600 ring-2 ring-brand-500/20' : 'border-slate-200 opacity-70 hover:opacity-100'
+                  }`}
               >
                 <img src={getFullUploadUrl(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
               </button>
@@ -337,22 +336,32 @@ const PropertyReview = () => {
           )}
 
           {/* Home Truths & House Rules */}
-          {(property.homeTruths || []).length > 0 && (
-            <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-3 shadow-xs">
-              <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Info className="w-4 h-4 text-brand-600" />
-                <span>Home Truths & House Rules</span>
-              </h3>
-              <ul className="space-y-2">
-                {property.homeTruths.map((truth, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-600 mt-1.5 shrink-0" />
-                    <span>{truth}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {(() => {
+            const parseList = (data) => {
+              if (!data) return [];
+              if (Array.isArray(data)) return data.flatMap(item => typeof item === 'string' ? item.split('\n') : []).map(s => s.trim()).filter(Boolean);
+              if (typeof data === 'string') return data.split('\n').map(s => s.trim()).filter(Boolean);
+              return [];
+            };
+            const list = [...parseList(property.homeTruths), ...parseList(property.houseRules)];
+            if (list.length === 0) return null;
+            return (
+              <div className="border border-slate-200 p-6 rounded-3xl space-y-3">
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Info className="w-4 h-4 text-brand-600" />
+                  <span>Home Truths & House Rules</span>
+                </h3>
+                <ul className="space-y-2">
+                  {list.map((truth, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600">
+                      {/* <span className="w-1.5 h-1.5 rounded-full bg-brand-600 mt-1.5 shrink-0" /> */}
+                      <span>{truth}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
 
           {/* Nearby Places */}
           {(property.nearbyPlaces || []).length > 0 && (
@@ -399,7 +408,7 @@ const PropertyReview = () => {
           {/* Host Card */}
           <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-5 shadow-xs">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Host / Owner Info</h3>
-            
+
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-base border border-brand-200 shrink-0">
                 {property.providerId?.name?.slice(0, 2).toUpperCase() || 'HO'}

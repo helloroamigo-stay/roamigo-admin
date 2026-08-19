@@ -100,7 +100,8 @@ const PropertyForm = () => {
     mealsImage: '',
     mealsPdf: '',
     spaces: [],
-    homeTruths: [],
+    homeTruths: '',
+    houseRules: '',
     nearbyPlaces: [],
     cancellationPolicy: ''
   });
@@ -188,7 +189,8 @@ const PropertyForm = () => {
         mealsImage: p.mealsImage || '',
         mealsPdf: p.mealsPdf || '',
         spaces: p.spaces && p.spaces.length > 0 ? p.spaces : [],
-        homeTruths: p.homeTruths && p.homeTruths.length > 0 ? p.homeTruths : [],
+        homeTruths: Array.isArray(p.homeTruths) ? p.homeTruths.join('\n') : (p.homeTruths || ''),
+        houseRules: Array.isArray(p.houseRules) ? p.houseRules.join('\n') : (p.houseRules || ''),
         nearbyPlaces: p.nearbyPlaces && p.nearbyPlaces.length > 0 ? p.nearbyPlaces : [],
         cancellationPolicy: p.cancellationPolicy || ''
       });
@@ -358,6 +360,12 @@ const PropertyForm = () => {
         cuisines: typeof form.cuisines === 'string'
           ? form.cuisines.split(',').map(s => s.trim()).filter(Boolean)
           : (form.cuisines || []),
+        homeTruths: typeof form.homeTruths === 'string'
+          ? form.homeTruths.split('\n').map(s => s.trim()).filter(Boolean)
+          : (form.homeTruths || []),
+        houseRules: typeof form.houseRules === 'string'
+          ? form.houseRules.split('\n').map(s => s.trim()).filter(Boolean)
+          : (form.houseRules || []),
         dietaryNotes: form.dietaryNotes || '',
         cancellationPolicy: form.cancellationPolicy || ''
       };
@@ -989,43 +997,26 @@ const PropertyForm = () => {
 
                   {/* Home Truths */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">Home Truths & House Rules</h4>
-                      <button
-                        type="button"
-                        onClick={handleAddHomeTruth}
-                        className="py-1.5 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Add House Rule</span>
-                      </button>
-                    </div>
+                    <h4 className="text-sm font-bold text-slate-900">Home Truths (Full Description)</h4>
+                    <textarea
+                      rows={5}
+                      value={form.homeTruths}
+                      onChange={(e) => setForm({ ...form, homeTruths: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
+                      placeholder="Enter full description of home truths, villa nuances, location notes..."
+                    />
+                  </div>
 
-                    {(form.homeTruths || []).map((truth, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        <input
-                          type="text"
-                          value={truth}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setForm(prev => {
-                              const updated = [...prev.homeTruths];
-                              updated[idx] = val;
-                              return { ...prev, homeTruths: updated };
-                            });
-                          }}
-                          placeholder="e.g. Loud music allowed only until 10 PM outdoors"
-                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveHomeTruth(idx)}
-                          className="p-2 text-slate-400 hover:text-red-600 bg-white border border-slate-200 rounded-xl"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                  {/* House Rules */}
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <h4 className="text-sm font-bold text-slate-900">House Rules (Full Description)</h4>
+                    <textarea
+                      rows={5}
+                      value={form.houseRules}
+                      onChange={(e) => setForm({ ...form, houseRules: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
+                      placeholder="Enter full description of guest rules, quiet hours, smoking/pet policy, pool guidelines..."
+                    />
                   </div>
 
                   {/* Nearby Places */}

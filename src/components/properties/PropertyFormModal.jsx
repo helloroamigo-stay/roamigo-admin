@@ -598,45 +598,31 @@ export const PropertyFormModal = ({
 
           {/* Home Truths & House Rules */}
           <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Info className="w-4 h-4" />
-                <span>Home Truths & House Rules</span>
-              </h4>
-              <button
-                type="button"
-                onClick={handleAddHomeTruth}
-                className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 font-semibold cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Rule / Truth</span>
-              </button>
-            </div>
+            <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Info className="w-4 h-4" />
+              <span>Home Truths (Full Description)</span>
+            </h4>
+            <textarea
+              rows={4}
+              value={typeof form.homeTruths === 'string' ? form.homeTruths : (Array.isArray(form.homeTruths) ? form.homeTruths.join('\n') : '')}
+              onChange={(e) => setForm({ ...form, homeTruths: e.target.value })}
+              className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500"
+              placeholder="Enter full description of home truths, villa nuances, location notes..."
+            />
+          </div>
 
-            {(form.homeTruths || []).length === 0 ? (
-              <p className="text-xs text-gray-500 italic">No home truths added. Add important guest rules or notes.</p>
-            ) : (
-              <div className="space-y-2">
-                {(form.homeTruths || []).map((truth, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      placeholder="e.g. No loud music allowed past 10 PM in open lawn areas."
-                      value={truth}
-                      onChange={(e) => handleHomeTruthChange(idx, e.target.value)}
-                      className="flex-1 bg-gray-900/70 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveHomeTruth(idx)}
-                      className="text-gray-500 hover:text-red-400 p-1 rounded-lg transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
+            <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Info className="w-4 h-4" />
+              <span>House Rules (Full Description)</span>
+            </h4>
+            <textarea
+              rows={4}
+              value={typeof form.houseRules === 'string' ? form.houseRules : (Array.isArray(form.houseRules) ? form.houseRules.join('\n') : '')}
+              onChange={(e) => setForm({ ...form, houseRules: e.target.value })}
+              className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500"
+              placeholder="Enter full description of guest rules, quiet hours, smoking/pet policy, pool guidelines..."
+            />
           </div>
 
           {/* Nearby Places & Landmarks */}
