@@ -580,7 +580,7 @@ const PropertyForm = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">Max Kids</label>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">Kids</label>
                       <input
                         type="number"
                         min={0}
