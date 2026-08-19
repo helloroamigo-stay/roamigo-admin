@@ -78,7 +78,9 @@ const PropertyForm = () => {
     title: '',
     description: '',
     pricePerNight: '',
+    baseGuests: 2,
     guestsMax: 2,
+    kidsCount: 0,
     bedrooms: 1,
     bathrooms: 1,
     propertyType: 'VILLA',
@@ -164,7 +166,9 @@ const PropertyForm = () => {
         title: p.title || '',
         description: p.description || '',
         pricePerNight: p.pricePerNight || '',
+        baseGuests: p.baseGuests !== undefined ? p.baseGuests : 2,
         guestsMax: p.guestsMax || 2,
+        kidsCount: p.kidsCount !== undefined ? p.kidsCount : 0,
         bedrooms: p.bedrooms || 1,
         bathrooms: p.bathrooms || 1,
         propertyType: p.propertyType || 'VILLA',
@@ -554,7 +558,17 @@ const PropertyForm = () => {
                   </div>
 
                   {/* Specs: Capacity */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">Base Guests</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={form.baseGuests}
+                        onChange={(e) => setForm({ ...form, baseGuests: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
+                      />
+                    </div>
                     <div>
                       <label className="block text-slate-600 text-xs font-semibold mb-1">Max Guests</label>
                       <input
@@ -562,6 +576,16 @@ const PropertyForm = () => {
                         min={1}
                         value={form.guestsMax}
                         onChange={(e) => setForm({ ...form, guestsMax: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">Max Kids</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={form.kidsCount}
+                        onChange={(e) => setForm({ ...form, kidsCount: e.target.value })}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>

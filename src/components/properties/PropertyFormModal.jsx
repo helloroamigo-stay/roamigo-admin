@@ -240,7 +240,7 @@ export const PropertyFormModal = ({
           </div>
 
           {/* Pricing & Capacity Specs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Price / Night (₹) *</label>
               <input
@@ -255,6 +255,17 @@ export const PropertyFormModal = ({
             </div>
 
             <div>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Base Guests</label>
+              <input
+                type="number"
+                value={form.baseGuests || 2}
+                onChange={(e) => setForm({ ...form, baseGuests: e.target.value })}
+                className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                min="1"
+              />
+            </div>
+
+            <div>
               <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Guests Max *</label>
               <input
                 type="number"
@@ -263,6 +274,17 @@ export const PropertyFormModal = ({
                 onChange={(e) => setForm({ ...form, guestsMax: e.target.value })}
                 className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
                 min="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Max Kids</label>
+              <input
+                type="number"
+                value={form.kidsCount || 0}
+                onChange={(e) => setForm({ ...form, kidsCount: e.target.value })}
+                className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                min="0"
               />
             </div>
 
