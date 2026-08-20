@@ -14,7 +14,9 @@ import {
   Loader2,
   FolderOpen,
   UploadCloud,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 const Destinations = () => {
@@ -40,7 +42,8 @@ const Destinations = () => {
     tagline: '',
     image: '',
     icon: 'MapPin',
-    featured: false
+    featured: false,
+    order: 0
   });
 
   const [colForm, setColForm] = useState({
@@ -160,7 +163,8 @@ const Destinations = () => {
         tagline: city.tagline || '',
         image: city.image || '',
         icon: city.icon || '',
-        featured: city.featured || false
+        featured: city.featured || false,
+        order: city.order !== undefined ? city.order : 0
       });
     } else {
       setEditingItem(null);
@@ -171,10 +175,33 @@ const Destinations = () => {
         tagline: '',
         image: '',
         icon: 'MapPin',
-        featured: false
+        featured: false,
+        order: cities.length > 0 ? (cities[cities.length - 1].order || cities.length) + 1 : 1
       });
     }
     setCityModalOpen(true);
+  };
+
+  const handleMoveCity = async (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= cities.length) return;
+
+    const newCities = [...cities];
+    const [moved] = newCities.splice(index, 1);
+    newCities.splice(targetIndex, 0, moved);
+
+    const updatedWithOrder = newCities.map((c, i) => ({ ...c, order: i + 1 }));
+    setCities(updatedWithOrder);
+
+    try {
+      const payload = updatedWithOrder.map((c) => ({ id: c._id, order: c.order }));
+      await adminAPI.reorderCities(payload);
+      message.success('Destination display order updated!');
+    } catch (err) {
+      console.error('Reorder error:', err);
+      message.error(err.message || 'Failed to update destination order');
+      fetchData();
+    }
   };
 
   const handleCitySubmit = async (e) => {
@@ -323,7 +350,7 @@ const Destinations = () => {
       {/* Render Cities tab */}
       {activeTab === 'cities' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {cities.map((city) => (
+          {cities.map((city, idx) => (
             <div
               key={city._id}
               className="bg-white border border-slate-200 rounded-3xl overflow-hidden group flex flex-col justify-between shadow-xs hover:border-slate-300 hover:shadow-md transition-all duration-300"
@@ -348,12 +375,17 @@ const Destinations = () => {
                     <div className="p-2 bg-white/90 backdrop-blur-md rounded-xl text-brand-600 border border-slate-200 shadow-xs">
                       {renderCityIcon(city.icon)}
                     </div>
-                    {/* Featured label */}
-                    {city.featured && (
-                      <span className="text-[10px] px-2.5 py-1 bg-brand-600 text-white rounded-full font-bold uppercase tracking-wider shadow-xs">
-                        Featured
+                    {/* Order badge & Featured label */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] px-2.5 py-1 bg-white/90 backdrop-blur-md text-slate-900 rounded-full font-bold shadow-xs">
+                        Order #{city.order !== undefined ? city.order : idx + 1}
                       </span>
-                    )}
+                      {city.featured && (
+                        <span className="text-[10px] px-2.5 py-1 bg-brand-600 text-white rounded-full font-bold uppercase tracking-wider shadow-xs">
+                          Featured
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white tracking-tight">{city.name}</h3>
@@ -370,18 +402,39 @@ const Destinations = () => {
 
                 <div className="flex items-center justify-between border-t border-slate-200 pt-4">
                   <span className="text-[10px] font-mono text-slate-500">slug: {city.slug}</span>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => handleMoveCity(idx, 'up')}
+                      className="p-1.5 bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg border border-slate-200 transition-all cursor-pointer"
+                      title="Move earlier in home page order"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === cities.length - 1}
+                      onClick={() => handleMoveCity(idx, 'down')}
+                      className="p-1.5 bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg border border-slate-200 transition-all cursor-pointer"
+                      title="Move later in home page order"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+
                     <button
                       onClick={() => handleOpenCityModal(city)}
-                      className="p-2 bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 rounded-lg border border-slate-200 hover:border-brand-200 transition-all cursor-pointer"
+                      className="p-1.5 bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-600 rounded-lg border border-slate-200 hover:border-brand-200 transition-all cursor-pointer ml-1"
+                      title="Edit City"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleCityDelete(city._id)}
-                      className="p-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg border border-slate-200 hover:border-red-200 transition-all cursor-pointer"
+                      className="p-1.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg border border-slate-200 hover:border-red-200 transition-all cursor-pointer"
+                      title="Delete City"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -499,7 +552,7 @@ const Destinations = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-slate-700 text-xs font-semibold mb-1.5 uppercase tracking-wide">Country</label>
                   <input
@@ -511,6 +564,16 @@ const Destinations = () => {
                   />
                 </div>
                 <div>
+                  <label className="block text-slate-700 text-xs font-semibold mb-1.5 uppercase tracking-wide">Display Order</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={cityForm.order !== undefined ? cityForm.order : 0}
+                    onChange={(e) => setCityForm({ ...cityForm, order: Number(e.target.value) })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
                   <label className="block text-slate-700 text-xs font-semibold mb-1.5 uppercase tracking-wide">Featured</label>
                   <label className="flex items-center gap-2 mt-2 cursor-pointer">
                     <input
@@ -519,7 +582,7 @@ const Destinations = () => {
                       onChange={(e) => setCityForm({ ...cityForm, featured: e.target.checked })}
                       className="rounded bg-slate-50 border-slate-300 text-brand-600 focus:ring-0 w-4 h-4 cursor-pointer"
                     />
-                    <span className="text-xs text-slate-700 font-medium">Feature on homepage</span>
+                    <span className="text-xs text-slate-700 font-medium">Homepage</span>
                   </label>
                 </div>
               </div>

@@ -93,6 +93,7 @@ export const adminAPI = {
   getCities: () => apiClient.get('/admin/cities'),
   createCity: (cityData) => apiClient.post('/admin/cities', cityData),
   updateCity: (id, cityData) => apiClient.patch(`/admin/cities/${id}`, cityData),
+  reorderCities: (citiesOrder) => apiClient.patch('/admin/cities/reorder', { cities: citiesOrder }),
   deleteCity: (id) => apiClient.delete(`/admin/cities/${id}`),
 
   // Collections CRUD
