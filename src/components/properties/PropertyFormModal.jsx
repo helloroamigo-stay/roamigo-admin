@@ -67,7 +67,7 @@ export const PropertyFormModal = ({
   const handleAddSpace = () => {
     setForm((prev) => ({
       ...prev,
-      spaces: [...(prev.spaces || []), { title: '', desc: '' }]
+      spaces: [...(prev.spaces || []), { title: '', desc: '', image: '' }]
     }));
   };
 
@@ -568,25 +568,33 @@ export const PropertyFormModal = ({
             ) : (
               <div className="space-y-3">
                 {(form.spaces || []).map((space, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-gray-900/70 p-3 border border-gray-800 rounded-xl">
+                  <div key={idx} className="flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-gray-900/70 p-3 border border-gray-800 rounded-xl">
                     <input
                       type="text"
                       placeholder="Space Title (e.g. Infinity Pool Deck)"
                       value={space.title}
                       onChange={(e) => handleSpaceChange(idx, 'title', e.target.value)}
-                      className="w-1/3 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                      className="w-full md:w-1/3 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500 font-semibold"
                     />
                     <input
                       type="text"
-                      placeholder="Description (e.g. Heated pool overlooking green cliffside)"
+                      placeholder="Description (e.g. Heated pool overlooking cliffside)"
                       value={space.desc}
                       onChange={(e) => handleSpaceChange(idx, 'desc', e.target.value)}
                       className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
                     />
+                    <input
+                      type="text"
+                      placeholder="Image URL (Optional)"
+                      value={space.image || ''}
+                      onChange={(e) => handleSpaceChange(idx, 'image', e.target.value)}
+                      className="w-full md:w-1/4 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                    />
                     <button
                       type="button"
                       onClick={() => handleRemoveSpace(idx)}
-                      className="text-gray-500 hover:text-red-400 p-1 rounded-lg transition-all"
+                      className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg transition-all self-end md:self-center cursor-pointer"
+                      title="Remove Space"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

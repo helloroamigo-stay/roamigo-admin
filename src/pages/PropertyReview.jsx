@@ -291,9 +291,18 @@ const PropertyReview = () => {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {property.spaces.map((space, idx) => (
-                  <div key={idx} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-1">
-                    <span className="text-xs font-bold text-slate-900 block">{space.title}</span>
-                    <p className="text-xs text-slate-600">{space.desc}</p>
+                  <div key={idx} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex gap-3 items-start">
+                    {space.image && (
+                      <img
+                        src={getFullUploadUrl(space.image)}
+                        alt={space.title}
+                        className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0"
+                      />
+                    )}
+                    <div className="space-y-1 flex-1">
+                      <span className="text-xs font-bold text-slate-900 block">{space.title}</span>
+                      <p className="text-xs text-slate-600">{space.desc}</p>
+                    </div>
                   </div>
                 ))}
               </div>

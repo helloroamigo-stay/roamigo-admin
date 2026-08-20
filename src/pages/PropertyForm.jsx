@@ -22,7 +22,8 @@ import {
   Eye,
   Building,
   GripVertical,
-  Move
+  Move,
+  X
 } from 'lucide-react';
 
 const { TextArea } = Input;
@@ -188,7 +189,7 @@ const PropertyForm = () => {
         dietaryNotes: p.dietaryNotes || '',
         mealsImage: p.mealsImage || '',
         mealsPdf: p.mealsPdf || '',
-        spaces: p.spaces && p.spaces.length > 0 ? p.spaces : [],
+        spaces: p.spaces && p.spaces.length > 0 ? p.spaces.map(s => ({ title: s.title || '', desc: s.desc || '', image: s.image || '' })) : [],
         homeTruths: Array.isArray(p.homeTruths) ? p.homeTruths.join('\n') : (p.homeTruths || ''),
         houseRules: Array.isArray(p.houseRules) ? p.houseRules.join('\n') : (p.houseRules || ''),
         nearbyPlaces: p.nearbyPlaces && p.nearbyPlaces.length > 0 ? p.nearbyPlaces : [],
@@ -284,7 +285,7 @@ const PropertyForm = () => {
   const handleAddSpace = () => {
     setForm(prev => ({
       ...prev,
-      spaces: [...(prev.spaces || []), { title: '', desc: '' }]
+      spaces: [...(prev.spaces || []), { title: '', desc: '', image: '' }]
     }));
   };
 
@@ -301,6 +302,21 @@ const PropertyForm = () => {
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, spaces: updated };
     });
+  };
+
+  const handleSpaceImageUpload = async (index, file) => {
+    if (!file) return;
+    try {
+      const res = await uploadAPI.uploadPropertyImages([file]);
+      const uploadedPaths = res.data?.imageUrls || res.data?.images || res.imageUrls || res.images || [];
+      if (uploadedPaths[0]) {
+        handleSpaceChange(index, 'image', uploadedPaths[0]);
+        message.success('Space photo uploaded successfully!');
+      }
+    } catch (err) {
+      console.error('Space image upload failed:', err);
+      message.error(err.message || 'Failed to upload space photo.');
+    }
   };
 
   const handleAddHomeTruth = () => {
@@ -976,21 +992,96 @@ const PropertyForm = () => {
                     </div>
 
                     {(form.spaces || []).map((space, idx) => (
-                      <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-white border border-slate-200 rounded-xl">
-                        <input
-                          type="text"
-                          value={space.title}
-                          onChange={(e) => handleSpaceChange(idx, 'title', e.target.value)}
-                          placeholder="e.g. Bedroom 1 (Ground Floor)"
-                          className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900"
-                        />
-                        <input
-                          type="text"
-                          value={space.desc}
-                          onChange={(e) => handleSpaceChange(idx, 'desc', e.target.value)}
-                          placeholder="e.g. King bed, ensuite bathroom, terrace view"
-                          className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 md:col-span-2"
-                        />
+                      <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+                        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                          {/* Image preview / thumbnail */}
+                          <div className="w-full md:w-28 h-24 shrink-0 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden relative group flex items-center justify-center">
+                            {space.image ? (
+                              <>
+                                <img
+                                  src={getFullUploadUrl(space.image)}
+                                  alt={space.title || `Space ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSpaceChange(idx, 'image', '')}
+                                  className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                  title="Remove image"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-200/50 transition-colors p-2 text-center">
+                                <UploadCloud className="w-5 h-5 text-slate-400 mb-1" />
+                                <span className="text-[9px] font-semibold text-slate-500">Upload Photo</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleSpaceImageUpload(idx, e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
+
+                          {/* Inputs: Title, Description, Image URL */}
+                          <div className="flex-1 w-full space-y-2">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <input
+                                type="text"
+                                value={space.title}
+                                onChange={(e) => handleSpaceChange(idx, 'title', e.target.value)}
+                                placeholder="e.g. Master Royal Suite"
+                                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900"
+                              />
+                              <input
+                                type="text"
+                                value={space.desc}
+                                onChange={(e) => handleSpaceChange(idx, 'desc', e.target.value)}
+                                placeholder="e.g. King bed, ensuite bath, ocean balcony view"
+                                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 md:col-span-2"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={space.image || ''}
+                                onChange={(e) => handleSpaceChange(idx, 'image', e.target.value)}
+                                placeholder="Space image URL (e.g. /uploads/properties/space-1.jpg or https://...)"
+                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700"
+                              />
+                              <label className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors shrink-0">
+                                Choose File
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleSpaceImageUpload(idx, e.target.files[0]);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSpace(idx)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer self-end md:self-center"
+                            title="Remove Space"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
