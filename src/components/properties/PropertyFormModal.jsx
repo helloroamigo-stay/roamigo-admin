@@ -1,4 +1,5 @@
 import React from 'react';
+import { Select } from 'antd';
 import {
   UploadCloud,
   Loader2,
@@ -164,20 +165,31 @@ export const PropertyFormModal = ({
               </select>
             </div>
 
-            <div>
-              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Collection Category</label>
-              <select
-                value={form.collectionId}
-                onChange={(e) => setForm({ ...form, collectionId: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer"
-              >
-                <option value="">None (Standard Listing)</option>
-                {collections.map((col) => (
-                  <option key={col._id} value={col._id}>
-                    {col.title}
-                  </option>
-                ))}
-              </select>
+            <div className="md:col-span-2">
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Featured Collections (Select Multiple)</label>
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="Select feature collections..."
+                value={
+                  Array.isArray(form.collections) && form.collections.length > 0
+                    ? form.collections
+                    : (form.collectionId ? [form.collectionId] : [])
+                }
+                onChange={(selectedValues) => {
+                  setForm({
+                    ...form,
+                    collections: selectedValues,
+                    collectionId: selectedValues.length > 0 ? selectedValues[0] : ''
+                  });
+                }}
+                className="w-full text-sm"
+                style={{ width: '100%' }}
+                options={collections.map((col) => ({
+                  label: col.title,
+                  value: col._id || col.id
+                }))}
+              />
             </div>
           </div>
 

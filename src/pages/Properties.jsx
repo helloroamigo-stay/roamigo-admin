@@ -70,7 +70,10 @@ const Properties = () => {
       googleMapsUrl: p.googleMapsUrl || '',
       images: p.images ? p.images.join(', ') : '',
       tagline: p.tagline || '',
-      collectionId: p.collectionId?._id || p.collectionId || '',
+    collectionId: p.collectionId?._id || p.collectionId || '',
+    collections: Array.isArray(p.collections) && p.collections.length > 0
+      ? p.collections.map(c => typeof c === 'object' ? c._id : c)
+      : (p.collectionId ? [typeof p.collectionId === 'object' ? p.collectionId._id : p.collectionId] : []),
       amenities: p.amenities || [],
       mealsDescription: p.mealsDescription || '',
       mealsImage: p.mealsImage || '',
@@ -210,7 +213,8 @@ const Properties = () => {
         googleMapsUrl: form.googleMapsUrl,
         images: imagesList,
         tagline: form.tagline || undefined,
-        collectionId: form.collectionId || undefined,
+        collections: form.collections && form.collections.length > 0 ? form.collections : undefined,
+        collectionId: form.collections && form.collections.length > 0 ? form.collections[0] : (form.collectionId || undefined),
         amenities: form.amenities,
         mealsDescription: form.mealsDescription || undefined,
         mealsImage: form.mealsImage || undefined,

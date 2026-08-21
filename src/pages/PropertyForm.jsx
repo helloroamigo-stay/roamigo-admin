@@ -185,8 +185,10 @@ Early check-in and late check-out is subject to availability (at an additional f
         country: p.country || 'India',
         googleMapsUrl: p.googleMapsUrl || '',
         images: p.images || [],
-        tagline: p.tagline || '',
         collectionId: p.collectionId?._id || p.collectionId || '',
+        collections: Array.isArray(p.collections) && p.collections.length > 0
+          ? p.collections.map(c => typeof c === 'object' ? c._id : c)
+          : (p.collectionId ? [typeof p.collectionId === 'object' ? p.collectionId._id : p.collectionId] : []),
         amenities: p.amenities || [],
         mealsDescription: p.mealsDescription || '',
         cuisines: p.cuisines ? (Array.isArray(p.cuisines) ? p.cuisines.join(', ') : p.cuisines) : '',
@@ -506,20 +508,31 @@ Early check-in and late check-out is subject to availability (at an additional f
 
                     <div>
                       <label className="block text-slate-700 text-xs font-bold mb-2 uppercase tracking-wide">
-                        Collection Category
+                        Collection Categories (Select Multiple)
                       </label>
-                      <select
-                        value={form.collectionId}
-                        onChange={(e) => setForm({ ...form, collectionId: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 cursor-pointer"
-                      >
-                        <option value="">None (Standard Listing)</option>
-                        {collections.map((col) => (
-                          <option key={col._id} value={col._id}>
-                            {col.title}
-                          </option>
-                        ))}
-                      </select>
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="Select feature collections..."
+                        value={
+                          Array.isArray(form.collections) && form.collections.length > 0
+                            ? form.collections
+                            : (form.collectionId ? [form.collectionId] : [])
+                        }
+                        onChange={(selectedValues) => {
+                          setForm({
+                            ...form,
+                            collections: selectedValues,
+                            collectionId: selectedValues.length > 0 ? selectedValues[0] : ''
+                          });
+                        }}
+                        style={{ width: '100%' }}
+                        size="large"
+                        options={collections.map((col) => ({
+                          label: col.title,
+                          value: col._id || col.id
+                        }))}
+                      />
                     </div>
                   </div>
 
