@@ -153,17 +153,22 @@ const Properties = () => {
     try {
       setUploadingPdf(true);
       const res = await uploadAPI.uploadMealPdf(file, editingPropertyId);
-      const pdfUrl = res.data.pdfUrl || '';
-      setForm((prev) => ({ ...prev, mealsPdf: pdfUrl }));
+      const filePath = res.data?.url || res.data?.pdfUrl || res.data?.imageUrl || res.pdfUrl || res.url || '';
+      const isImage = file.type.startsWith('image/');
+      setForm((prev) => ({
+        ...prev,
+        mealsPdf: filePath,
+        mealsImage: isImage ? filePath : prev.mealsImage
+      }));
     } catch (err) {
-      alert(err.message || 'Failed to upload PDF.');
+      alert(err.message || 'Failed to upload meal menu file.');
     } finally {
       setUploadingPdf(false);
     }
   };
 
   const handleRemovePdf = () => {
-    setForm((prev) => ({ ...prev, mealsPdf: '' }));
+    setForm((prev) => ({ ...prev, mealsPdf: '', mealsImage: '' }));
   };
 
   const handleCreateSubmit = async (e) => {

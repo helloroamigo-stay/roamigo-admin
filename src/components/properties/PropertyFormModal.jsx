@@ -489,23 +489,23 @@ export const PropertyFormModal = ({
                 />
               </div>
 
-              {/* Meal PDF Menu Upload */}
+              {/* Meal Menu File (Image or PDF) Upload */}
               <div className="space-y-2">
-                <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Property Meal Menu PDF</label>
+                <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Property Meal Menu (Image or PDF)</label>
 
-                {form.mealsPdf ? (
+                {form.mealsPdf || form.mealsImage ? (
                   <div className="flex items-center justify-between p-3.5 bg-gray-900 border border-gray-800 rounded-xl">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <FileText className="w-5 h-5 text-red-400 shrink-0" />
+                      <FileText className="w-5 h-5 text-brand-400 shrink-0" />
                       <div className="truncate">
-                        <span className="text-xs font-medium text-white truncate block">Meal Menu Document</span>
+                        <span className="text-xs font-medium text-white truncate block">Meal Menu File</span>
                         <a
-                          href={getFullUploadUrl(form.mealsPdf)}
+                          href={getFullUploadUrl(form.mealsPdf || form.mealsImage)}
                           target="_blank"
                           rel="noreferrer"
                           className="text-[10px] text-brand-400 hover:underline truncate block"
                         >
-                          View PDF file
+                          View Menu File
                         </a>
                       </div>
                     </div>
@@ -513,7 +513,7 @@ export const PropertyFormModal = ({
                       type="button"
                       onClick={onRemovePdf}
                       className="p-1.5 bg-gray-800 hover:bg-red-950/40 hover:text-red-400 text-gray-400 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-900/30"
-                      title="Remove PDF"
+                      title="Remove Menu File"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -523,18 +523,18 @@ export const PropertyFormModal = ({
                     {uploadingPdf ? (
                       <div className="flex flex-col items-center gap-1.5">
                         <Loader2 className="w-5 h-5 text-brand-500 animate-spin" />
-                        <span className="text-[11px] text-gray-400">Uploading PDF document...</span>
+                        <span className="text-[11px] text-gray-400">Uploading meal file...</span>
                       </div>
                     ) : (
                       <label className="flex flex-col items-center gap-1.5 cursor-pointer w-full text-center">
                         <FileText className="w-5 h-5 text-gray-500" />
                         <div>
-                          <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Upload Meal Menu PDF</span>
-                          <p className="text-[9px] text-gray-500 mt-0.5">Supports PDF menu files up to 10MB</p>
+                          <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Upload Meal Menu (Image or PDF)</span>
+                          <p className="text-[9px] text-gray-500 mt-0.5">Supports images (JPG, PNG, WEBP) or PDF menu files</p>
                         </div>
                         <input
                           type="file"
-                          accept="application/pdf"
+                          accept="image/*,application/pdf,.pdf"
                           onChange={onPdfUpload}
                           className="hidden"
                         />
@@ -630,6 +630,20 @@ export const PropertyFormModal = ({
               onChange={(e) => setForm({ ...form, houseRules: e.target.value })}
               className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500"
               placeholder="Enter full description of guest rules, quiet hours, smoking/pet policy, pool guidelines..."
+            />
+          </div>
+
+          <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
+            <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="w-4 h-4" />
+              <span>Cancellation Policy & Terms</span>
+            </h4>
+            <textarea
+              rows={5}
+              value={form.cancellationPolicy || ''}
+              onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
+              className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500 leading-relaxed"
+              placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want"
             />
           </div>
 

@@ -104,7 +104,11 @@ const PropertyForm = () => {
     homeTruths: '',
     houseRules: '',
     nearbyPlaces: [],
-    cancellationPolicy: ''
+    cancellationPolicy: `Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.
+
+Checkin 2pm 
+Checkout 11am
+Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want`
   });
 
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -263,7 +267,7 @@ const PropertyForm = () => {
     }));
   };
 
-  // PDF Menu Upload
+  // Meal Menu File (Image or PDF) Upload
   const handlePdfUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -271,11 +275,16 @@ const PropertyForm = () => {
     try {
       setUploadingPdf(true);
       const res = await uploadAPI.uploadMealPdf(file);
-      const pdfPath = res.data?.pdfUrl || res.data?.pdf || res.pdfUrl || res.url || '';
-      setForm(prev => ({ ...prev, mealsPdf: pdfPath }));
-      message.success('Meal menu PDF uploaded successfully!');
+      const filePath = res.data?.url || res.data?.pdfUrl || res.data?.imageUrl || res.pdfUrl || res.url || '';
+      const isImage = file.type.startsWith('image/');
+      setForm(prev => ({
+        ...prev,
+        mealsPdf: filePath,
+        mealsImage: isImage ? filePath : prev.mealsImage
+      }));
+      message.success(`Meal menu ${isImage ? 'image' : 'PDF'} uploaded successfully!`);
     } catch (err) {
-      message.error(err.message || 'PDF upload failed.');
+      message.error(err.message || 'File upload failed.');
     } finally {
       setUploadingPdf(false);
     }
@@ -940,25 +949,25 @@ const PropertyForm = () => {
 
                     <div>
                       <label className="block text-slate-600 text-xs font-semibold mb-2">
-                        Upload Meal Menu PDF Document
+                        Upload Meal Menu Document (Image or PDF)
                       </label>
                       <div className="flex items-center gap-4">
                         <input
                           type="file"
-                          accept=".pdf"
+                          accept="image/*,application/pdf,.pdf"
                           onChange={handlePdfUpload}
                           className="text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
                         />
                         {uploadingPdf && (
                           <div className="flex items-center gap-2 text-xs text-brand-600">
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Uploading PDF...</span>
+                            <span>Uploading file...</span>
                           </div>
                         )}
-                        {form.mealsPdf && (
+                        {(form.mealsPdf || form.mealsImage) && (
                           <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
                             <Check className="w-4 h-4" />
-                            <span>PDF Attached</span>
+                            <span>Menu File Attached</span>
                           </span>
                         )}
                       </div>
@@ -1174,11 +1183,11 @@ const PropertyForm = () => {
                         Cancellation Policy & Refund Terms
                       </label>
                       <textarea
-                        rows={3}
+                        rows={6}
                         value={form.cancellationPolicy}
                         onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
-                        className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
-                        placeholder="e.g. Full refund up to 7 days before check-in. 50% refund up to 48 hours before check-in. Cancellations made within 48 hours of check-in are non-refundable."
+                        className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium leading-relaxed"
+                        placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want"
                       />
                     </div>
                   </div>
