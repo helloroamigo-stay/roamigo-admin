@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// const API_BASE_URL = 'https://roamigo-backend.in/api/v1';
+const API_BASE_URL = 'https://roamigo-backend.in/api/v1';
 // const API_BASE_URL = 'http://localhost:5000/api/v1';
-const API_BASE_URL = 'https://test.roamigo-backend.in/api/v1';
+// const API_BASE_URL = 'https://test.roamigo-backend.in/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -65,6 +65,8 @@ export const adminAPI = {
   // Providers
   getProviders: () => apiClient.get('/admin/providers'),
   getProviderById: (id) => apiClient.get(`/admin/providers/${id}`),
+  getProviderProperties: (id) => apiClient.get(`/admin/providers/${id}/properties`),
+  getProviderBookings: (id) => apiClient.get(`/admin/providers/${id}/bookings`),
   approveProvider: (id) => apiClient.patch(`/admin/providers/${id}/approve`),
   rejectProvider: (id) => apiClient.patch(`/admin/providers/${id}/reject`),
   suspendProvider: (id) => apiClient.patch(`/admin/providers/${id}/suspend`),
@@ -72,6 +74,9 @@ export const adminAPI = {
   // Properties
   getProperties: () => apiClient.get('/admin/properties'),
   getPropertyById: (id) => apiClient.get(`/admin/properties/${id}`),
+  getPropertyAvailability: (propertyId) => apiClient.get(`/admin/properties/${propertyId}/availability`),
+  releasePropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/release-dates`, payload),
+  blockPropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/block-dates`, payload),
   createProperty: (propertyData) => apiClient.post('/admin/properties', propertyData),
   updateProperty: (id, propertyData) => apiClient.patch(`/admin/properties/${id}`, propertyData),
   updatePropertyStatus: (id, status) => apiClient.patch(`/admin/properties/${id}/status`, { status }),
@@ -82,6 +87,8 @@ export const adminAPI = {
   // Bookings
   getBookings: () => apiClient.get('/admin/bookings'),
   getBookingById: (id) => apiClient.get(`/admin/bookings/${id}`),
+  confirmEnquiry: (id, payload) => apiClient.patch(`/admin/bookings/${id}/confirm`, payload),
+  releaseBookingDates: (bookingId) => apiClient.post(`/admin/bookings/${bookingId}/release`),
 
   // Payments, Refunds & Payouts
   getPayments: () => apiClient.get('/admin/payments'),
@@ -101,6 +108,11 @@ export const adminAPI = {
   createCollection: (colData) => apiClient.post('/admin/collections', colData),
   updateCollection: (id, colData) => apiClient.patch(`/admin/collections/${id}`, colData),
   deleteCollection: (id) => apiClient.delete(`/admin/collections/${id}`),
+
+  // Partner Enquiries
+  getPartnerEnquiries: () => apiClient.get('/admin/partner-enquiries'),
+  updatePartnerEnquiryStatus: (id, status) => apiClient.patch(`/admin/partner-enquiries/${id}/status`, { status }),
+  deletePartnerEnquiry: (id) => apiClient.delete(`/admin/partner-enquiries/${id}`),
 };
 
 export const getFullUploadUrl = (path) => {

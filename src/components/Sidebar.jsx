@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   Compass,
   LayoutDashboard,
@@ -10,9 +10,10 @@ import {
   Home,
   CreditCard,
   HelpCircle,
+  Handshake,
   LogOut,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 
 const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const { logout, user } = useAuth();
@@ -26,13 +27,14 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   }, [location.pathname, setMobileOpen]);
 
   const menuItems = [
-    { name: 'Overview', path: '/', icon: LayoutDashboard },
-    { name: 'Destinations & Collections', path: '/destinations', icon: Map },
-    { name: 'Providers', path: '/providers', icon: UserCheck },
-    { name: 'Properties', path: '/properties', icon: Home },
-    { name: 'Guest Enquiries', path: '/enquiries', icon: HelpCircle },
-    { name: 'Payments & Gateways', path: '/payments', icon: CreditCard },
-    { name: 'Registered Users', path: '/users', icon: Users },
+    { name: "Overview", path: "/", icon: LayoutDashboard },
+    { name: "Destinations & Collections", path: "/destinations", icon: Map },
+    { name: "Providers", path: "/providers", icon: UserCheck },
+    { name: "Properties", path: "/properties", icon: Home },
+    { name: "Guest Enquiries", path: "/enquiries", icon: HelpCircle },
+    { name: "Partner Enquiries", path: "/partner-enquiries", icon: Handshake },
+    { name: "Payments & Gateways", path: "/payments", icon: CreditCard },
+    { name: "Registered Users", path: "/users", icon: Users },
   ];
 
   return (
@@ -47,7 +49,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       <aside
         className={`w-68 bg-white border-r border-slate-200 flex flex-col h-screen fixed left-0 top-0 z-40 font-sans shadow-xs transition-transform duration-300 ease-in-out ${
-          mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+          mobileOpen
+            ? "translate-x-0 shadow-2xl"
+            : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Brand Logo Header */}
@@ -61,8 +65,12 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
               />
             </div>
             <div>
-              <h1 className="text-lg font-display font-bold text-slate-900 tracking-tight">Roamigo</h1>
-              <span className="text-[10px] text-brand-600 font-bold tracking-wider uppercase">Admin Portal</span>
+              <h1 className="text-lg font-display font-bold text-slate-900 tracking-tight">
+                Roamigo
+              </h1>
+              <span className="text-[10px] text-brand-600 font-bold tracking-wider uppercase">
+                Admin Portal
+              </span>
             </div>
           </div>
 
@@ -87,8 +95,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 group ${
                     isActive
-                      ? 'bg-brand-50 text-brand-600 border border-brand-200/80 shadow-xs font-semibold'
-                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent'
+                      ? "bg-brand-50 text-brand-600 border border-brand-200/80 shadow-xs font-semibold"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent"
                   }`
                 }
               >
@@ -110,12 +118,16 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
               />
             ) : (
               <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm">
-                {user?.name?.slice(0, 2).toUpperCase() || 'AD'}
+                {user?.name?.slice(0, 2).toUpperCase() || "AD"}
               </div>
             )}
             <div className="truncate">
-              <div className="text-xs font-semibold text-slate-900 truncate">{user?.name}</div>
-              <div className="text-[10px] text-slate-500 truncate">{user?.email}</div>
+              <div className="text-xs font-semibold text-slate-900 truncate">
+                {user?.name}
+              </div>
+              <div className="text-[10px] text-slate-500 truncate">
+                {user?.email}
+              </div>
             </div>
           </div>
 
