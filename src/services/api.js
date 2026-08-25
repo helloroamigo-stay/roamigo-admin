@@ -87,6 +87,7 @@ export const adminAPI = {
   // Bookings
   getBookings: () => apiClient.get('/admin/bookings'),
   getBookingById: (id) => apiClient.get(`/admin/bookings/${id}`),
+  updateBookingLeadStatus: (id, leadStatus) => apiClient.patch(`/admin/bookings/${id}/lead-status`, { leadStatus }),
   confirmEnquiry: (id, payload) => apiClient.patch(`/admin/bookings/${id}/confirm`, payload),
   releaseBookingDates: (bookingId) => apiClient.post(`/admin/bookings/${bookingId}/release`),
 
