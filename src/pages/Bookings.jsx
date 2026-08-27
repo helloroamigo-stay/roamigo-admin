@@ -1,352 +1,369 @@
-import React, { useState, useEffect } from 'react';
-import { adminAPI } from '../services/api';
-import { 
-  Calendar, 
-  CreditCard, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Clock, 
-  CheckCircle2, 
-  Loader2, 
+import React, { useState, useEffect } from "react";
+import { adminAPI } from "../services/api";
+import {
+  Calendar,
+  Clock,
+  CheckCircle2,
+  Loader2,
   Building,
   User,
-  ExternalLink,
-  ChevronRight
-} from 'lucide-react';
+  Search,
+  Mail,
+  Home,
+  XCircle,
+  AlertCircle,
+  Unlock,
+  ShieldAlert,
+  Phone,
+} from "lucide-react";
+import { Modal, message } from "antd";
 
 const Bookings = () => {
-  const [activeTab, setActiveTab] = useState('bookings');
   const [bookings, setBookings] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Date release modal state
+  const [selectedBookingForRelease, setSelectedBookingForRelease] =
+    useState(null);
+  const [releasing, setReleasing] = useState(false);
 
   useEffect(() => {
-    fetchFinancialData();
+    fetchBookings();
   }, []);
 
-  const fetchFinancialData = async () => {
+  const fetchBookings = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [bookingsRes, paymentsRes, payoutsRes] = await Promise.all([
-        adminAPI.getBookings(),
-        adminAPI.getPayments(),
-        adminAPI.getPayouts()
-      ]);
-      setBookings(bookingsRes.data?.bookings || []);
-      setPayments(paymentsRes.data?.payments || []);
-      setPayouts(payoutsRes.data?.payouts || []);
+      const res = await adminAPI.getBookings();
+      setBookings(res.data?.bookings || []);
     } catch (err) {
-      console.error('Error fetching financial ledgers:', err);
-      setError('Could not retrieve billing transactions data.');
+      console.error("Error fetching bookings:", err);
+      setError("Could not retrieve bookings data.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProcessPayout = async (id) => {
-    if (!window.confirm('Process payout transfer to host? This will mark the ledger item as PAID and generate a gateway transfer ID.')) {
-      return;
-    }
+  const handleReleaseBookingDates = async () => {
+    if (!selectedBookingForRelease) return;
     try {
-      setActionLoading(id);
-      await adminAPI.processPayout(id);
-      fetchFinancialData();
+      setReleasing(true);
+      const res = await adminAPI.releaseBookingDates(
+        selectedBookingForRelease._id
+      );
+      message.success(
+        res.message || "Dates released successfully to calendar."
+      );
+      setSelectedBookingForRelease(null);
+      fetchBookings();
     } catch (err) {
-      alert(err.message || 'Processing payout failed.');
+      console.error("Error releasing booking dates:", err);
+      message.error(err.message || "Failed to release dates.");
     } finally {
-      setActionLoading(null);
+      setReleasing(false);
     }
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'CONFIRMED':
-      case 'COMPLETED':
-      case 'COMPLETED':
-      case 'SUCCESS':
-      case 'PAID':
-        return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-      case 'PENDING':
-      case 'PENDING_PAYMENT':
-        return 'bg-amber-500/10 border-amber-500/20 text-amber-400';
-      case 'CANCELLED':
-      case 'FAILED':
-      case 'REFUNDED':
-        return 'bg-red-500/10 border-red-500/20 text-red-400';
+      case "CONFIRMED":
+      case "COMPLETED":
+      case "PAID":
+        return "bg-emerald-500/10 border-emerald-500/20 text-emerald-400";
+      case "PENDING":
+      case "PENDING_APPROVAL":
+      case "PENDING_PAYMENT":
+        return "bg-amber-500/10 border-amber-500/20 text-amber-400";
+      case "CANCELLED":
+      case "FAILED":
+      case "REFUNDED":
+        return "bg-red-500/10 border-red-500/20 text-red-400";
       default:
-        return 'bg-gray-800 border-gray-700 text-gray-400';
+        return "bg-gray-800 border-gray-700 text-gray-400";
     }
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   };
 
-  if (loading && bookings.length === 0 && payments.length === 0 && payouts.length === 0) {
+  const filteredBookings = bookings.filter((bk) => {
+    const code = bk.bookingCode || bk._id || "";
+    const guestName = bk.customerId?.name || bk.guestInfo?.name || "";
+    const guestEmail = bk.customerId?.email || bk.guestInfo?.email || "";
+    const guestPhone = bk.customerId?.phone || bk.guestInfo?.phone || "";
+    const propTitle = bk.propertyId?.title || "";
+
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh]">
-        <Loader2 className="w-10 h-10 text-brand-500 animate-spin mb-4" />
-        <p className="text-gray-400 text-sm">Loading financial ledgers...</p>
-      </div>
+      code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guestEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guestPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      propTitle.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }
+  });
 
   return (
     <div className="p-8 space-y-8 max-w-[1600px] mx-auto font-sans">
-      {/* Sub-navigation bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-800 pb-4">
-        <div className="flex bg-gray-900/80 p-1 border border-gray-850 rounded-2xl w-fit">
-          <button
-            onClick={() => setActiveTab('bookings')}
-            className={`flex items-center gap-2 py-2.5 px-6 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'bookings'
-                ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/10'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Bookings Stream</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('payments')}
-            className={`flex items-center gap-2 py-2.5 px-6 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'payments'
-                ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/10'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Gateways & Refunds</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('payouts')}
-            className={`flex items-center gap-2 py-2.5 px-6 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'payouts'
-                ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/10'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Host Payouts Ledger</span>
-            {payouts.filter(p => p.payoutStatus === 'PENDING').length > 0 && (
-              <span className="w-2 h-2 bg-brand-500 rounded-full animate-ping" />
-            )}
-          </button>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-white flex items-center gap-3">
+            <Calendar className="w-7 h-7 text-brand-400" />
+            <span>Bookings Stream & Calendar Management</span>
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Complete history and real-time feed of guest vacation reservations
+            across all property listings. Release held dates anytime.
+          </p>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-950/20 border border-red-900/30 text-red-300 rounded-2xl p-4 text-sm">
-          {error}
+      {/* Filter and Search Bar */}
+      <div className="bg-[#0f172a] border border-gray-800 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search by booking code, guest, phone, property..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-[#1e293b]/50 border border-gray-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-all"
+          />
         </div>
-      )}
+      </div>
 
-      {/* RENDER BOOKINGS LEDGER */}
-      {activeTab === 'bookings' && (
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-[#0f172a]/60 border border-gray-800 rounded-3xl">
+          <Loader2 className="w-10 h-10 text-brand-400 animate-spin mb-4" />
+          <p className="text-gray-400 text-sm font-medium">
+            Fetching bookings database...
+          </p>
+        </div>
+      ) : error ? (
+        <div className="p-8 bg-red-950/20 border border-red-900/40 rounded-3xl text-center max-w-lg mx-auto">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-white mb-2">
+            Failed to Load Bookings
+          </h3>
+          <p className="text-gray-400 text-sm mb-6">{error}</p>
+          <button
+            onClick={fetchBookings}
+            className="py-2 px-6 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-medium transition-all"
+          >
+            Retry
+          </button>
+        </div>
+      ) : filteredBookings.length === 0 ? (
+        <div className="py-16 text-center bg-[#0f172a]/60 border border-gray-800 rounded-3xl">
+          <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-white">
+            No bookings found
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            No reservations logged matching your search.
+          </p>
+        </div>
+      ) : (
         <div className="bg-[#0f172a] border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
-          <div className="p-6 border-b border-gray-800">
-            <h3 className="text-base font-bold text-white">All Bookings</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Stream of guest vacation reservations</p>
-          </div>
-          {bookings.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 text-sm">No reservations logged in the database.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-850 text-gray-400 text-xs font-semibold uppercase tracking-wider bg-gray-900/40">
-                    <th className="p-4 pl-6">ID & Guest</th>
-                    <th className="p-4">Property</th>
-                    <th className="p-4">Stay Dates</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 pr-6 text-right">Total Price</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-850 text-sm">
-                  {bookings.map((bk) => (
-                    <tr key={bk._id} className="hover:bg-gray-900/10 transition-all">
-                      <td className="p-4 pl-6">
-                        <div className="font-mono font-bold text-brand-400 text-xs">#{bk._id?.slice(-6).toUpperCase()}</div>
-                        <div className="text-white font-medium mt-0.5">{bk.customerId?.name || 'Guest'}</div>
-                        <div className="text-[10px] text-gray-500">{bk.customerId?.email}</div>
-                      </td>
-                      <td className="p-4 max-w-[240px] truncate">
-                        <div className="text-white font-medium truncate">{bk.propertyId?.title || 'Unknown Property'}</div>
-                        <div className="text-[11px] text-gray-500 truncate">{bk.propertyId?.address || 'N/A'}</div>
-                      </td>
-                      <td className="p-4 text-xs space-y-0.5">
-                        <div className="text-white"><span className="text-gray-500">In:</span> {formatDate(bk.checkIn)}</div>
-                        <div className="text-white"><span className="text-gray-500">Out:</span> {formatDate(bk.checkOut)}</div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-[10px] px-2.5 py-1 border rounded-full font-bold uppercase tracking-wider ${getStatusBadge(bk.status)}`}>
-                          {bk.status}
-                        </span>
-                      </td>
-                      <td className="p-4 pr-6 text-right text-white font-semibold text-base">
-                        ₹{bk.totalAmount?.toLocaleString('en-IN')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-white">
+                All Reserved Bookings
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Stream of guest vacation reservations & availability locks
+              </p>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* RENDER PAYMENTS */}
-      {activeTab === 'payments' && (
-        <div className="bg-[#0f172a] border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
-          <div className="p-6 border-b border-gray-800">
-            <h3 className="text-base font-bold text-white">Payment Transactions</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Gateway orders and refunds</p>
+            <span className="text-xs text-gray-400 bg-gray-900 px-3 py-1 border border-gray-800 rounded-lg">
+              Total:{" "}
+              <span className="text-white font-bold">
+                {filteredBookings.length}
+              </span>
+            </span>
           </div>
-          {payments.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 text-sm">No transaction records registered.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-850 text-gray-400 text-xs font-semibold uppercase tracking-wider bg-gray-900/40">
-                    <th className="p-4 pl-6">Booking Ref</th>
-                    <th className="p-4">Gateway Reference</th>
-                    <th className="p-4">Customer</th>
-                    <th className="p-4">Method & Date</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 pr-6 text-right">Paid Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-850 text-sm">
-                  {payments.map((p) => (
-                    <tr key={p._id} className="hover:bg-gray-900/10 transition-all">
-                      <td className="p-4 pl-6 font-mono text-brand-400 text-xs font-semibold">
-                        #{p.bookingId?._id?.slice(-6).toUpperCase() || 'N/A'}
-                      </td>
-                      <td className="p-4 font-mono text-xs">
-                        <div className="text-white">{p.paymentId || 'N/A'}</div>
-                        <div className="text-gray-500 text-[10px] mt-0.5">order: {p.orderId || 'N/A'}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="text-white font-medium">{p.customerId?.name || 'Guest'}</div>
-                        <div className="text-[10px] text-gray-500">{p.customerId?.email}</div>
-                      </td>
-                      <td className="p-4 text-xs">
-                        <div className="text-white uppercase font-semibold">{p.paymentMethod || 'UPI/Card'}</div>
-                        <div className="text-gray-500 text-[10px] mt-0.5">{formatDate(p.createdAt)}</div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-[10px] px-2.5 py-1 border rounded-full font-bold uppercase tracking-wider ${getStatusBadge(p.status)}`}>
-                          {p.status}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-gray-800 text-gray-400 text-xs font-semibold uppercase tracking-wider bg-[#1e293b]/40">
+                  <th className="p-4 pl-6">ID & Guest</th>
+                  <th className="p-4">Property</th>
+                  <th className="p-4">Stay Dates</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Total Price</th>
+                  <th className="p-4 pr-6 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/60 text-sm">
+                {filteredBookings.map((bk) => (
+                  <tr
+                    key={bk._id}
+                    className="hover:bg-[#1e293b]/30 transition-all"
+                  >
+                    <td className="p-4 pl-6">
+                      <div className="font-mono font-bold text-brand-400 text-xs">
+                        #{bk.bookingCode || bk._id?.slice(-6).toUpperCase()}
+                      </div>
+                      <div className="text-white font-medium mt-0.5">
+                        {bk.customerId?.name || bk.guestInfo?.name || "Guest"}
+                      </div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <Mail className="w-3 h-3 text-gray-500" />
+                        <span>
+                          {bk.customerId?.email || bk.guestInfo?.email || "N/A"}
                         </span>
-                      </td>
-                      <td className="p-4 pr-6 text-right text-white font-semibold text-base">
-                        ₹{(p.amount / 100).toLocaleString('en-IN')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* RENDER HOST PAYOUTS */}
-      {activeTab === 'payouts' && (
-        <div className="bg-[#0f172a] border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
-          <div className="p-6 border-b border-gray-800">
-            <h3 className="text-base font-bold text-white">Host Payouts</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Manage provider payout balances and banking transfers</p>
-          </div>
-          {payouts.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 text-sm">No payout ledger files present.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-850 text-gray-400 text-xs font-semibold uppercase tracking-wider bg-gray-900/40">
-                    <th className="p-4 pl-6">Host Operator</th>
-                    <th className="p-4">Booking Ref</th>
-                    <th className="p-4">Bank Accounts Payout Details</th>
-                    <th className="p-4">Splits</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 pr-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-850 text-sm">
-                  {payouts.map((l) => (
-                    <tr key={l._id} className="hover:bg-gray-900/10 transition-all">
-                      <td className="p-4 pl-6">
-                        <div className="text-white font-semibold">{l.providerId?.userId?.name || 'Partner Host'}</div>
-                        <div className="text-xs text-brand-400 font-medium mt-0.5">{l.providerId?.businessName || 'Operator'}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-mono text-gray-400 text-xs font-semibold">#{l.bookingId?._id?.slice(-6).toUpperCase() || 'N/A'}</div>
-                        <div className="text-[10px] text-gray-500 mt-0.5">Total booking: ₹{l.amountBooked?.toLocaleString('en-IN') || 'N/A'}</div>
-                      </td>
-                      <td className="p-4 text-xs space-y-1">
-                        {l.providerId?.payoutDetails?.bankName ? (
-                          <>
-                            <div className="text-white font-medium">{l.providerId.payoutDetails.bankName}</div>
-                            <div className="text-gray-400">A/C: <span className="font-semibold text-white">{l.providerId.payoutDetails.accountNumber}</span></div>
-                            <div className="text-gray-500">IFSC: <span className="font-semibold text-gray-400">{l.providerId.payoutDetails.ifscCode}</span></div>
-                          </>
-                        ) : (
-                          <span className="text-amber-500 font-medium">Bank Details Not Configured</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-xs space-y-1">
-                        <div className="text-emerald-400 font-semibold">Earnings: ₹{l.hostEarnings?.toLocaleString('en-IN')}</div>
-                        <div className="text-gray-500">Fee: ₹{l.platformCommission?.toLocaleString('en-IN')}</div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-[10px] px-2.5 py-1 border rounded-full font-bold uppercase tracking-wider ${getStatusBadge(l.payoutStatus)}`}>
-                          {l.payoutStatus || 'PENDING'}
-                        </span>
-                        {l.payoutStatus === 'PAID' && (
-                          <div className="text-[9px] font-mono text-gray-500 mt-1">tx: {l.gatewayTransferId?.slice(0, 10)}...</div>
-                        )}
-                      </td>
-                      <td className="p-4 pr-6 text-right">
-                        {l.payoutStatus === 'PENDING' ? (
-                          <button
-                            onClick={() => handleProcessPayout(l._id)}
-                            disabled={actionLoading !== null || !l.providerId?.payoutDetails?.bankName}
-                            className="py-2 px-4 bg-brand-500 hover:bg-brand-400 text-white rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-40 shadow-sm transition-all"
-                          >
-                            {actionLoading === l._id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              'Process Payout'
-                            )}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-500 font-medium flex items-center justify-end gap-1">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                            <span>Processed</span>
+                      </div>
+                      {(bk.customerId?.phone || bk.guestInfo?.phone) && (
+                        <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3 text-gray-500" />
+                          <span>
+                            {bk.customerId?.phone || bk.guestInfo?.phone}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4 max-w-[260px]">
+                      <div className="flex items-start gap-2">
+                        <Home className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
+                        <div className="truncate">
+                          <div className="text-white font-medium truncate">
+                            {bk.propertyId?.title || "Unknown Property"}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {bk.propertyId?.address || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4 text-xs space-y-0.5">
+                      <div className="text-white">
+                        <span className="text-gray-500">In:</span>{" "}
+                        {formatDate(bk.checkIn)}
+                      </div>
+                      <div className="text-white">
+                        <span className="text-gray-500">Out:</span>{" "}
+                        {formatDate(bk.checkOut)}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`text-[10px] px-2.5 py-1 border rounded-full font-bold uppercase tracking-wider ${getStatusBadge(
+                          bk.status
+                        )}`}
+                      >
+                        {bk.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right text-white font-semibold text-base">
+                      ₹{bk.totalAmount?.toLocaleString("en-IN") || "0"}
+                    </td>
+                    <td className="p-4 pr-6 text-center">
+                      {bk.status !== "CANCELLED" ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBookingForRelease(bk)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-semibold cursor-pointer transition-all hover:scale-105"
+                          title="Release these dates back to the availability calendar"
+                        >
+                          <Unlock className="w-3.5 h-3.5" />
+                          <span>Release Dates</span>
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-600 italic">
+                          Dates Released
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+
+      {/* Date Release Confirmation Modal */}
+      <Modal
+        open={!!selectedBookingForRelease}
+        onCancel={() => setSelectedBookingForRelease(null)}
+        footer={null}
+        centered
+        width={500}
+      >
+        <div className="p-4 space-y-5 text-left">
+          <div className="flex items-center gap-3 text-red-600">
+            <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center">
+              <ShieldAlert className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Release Calendar Dates
+              </h3>
+              <p className="text-xs text-slate-500">
+                Unlock property availability
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs text-slate-700">
+            <p>
+              <strong className="text-slate-900">Booking Code:</strong> #
+              {selectedBookingForRelease?.bookingCode}
+            </p>
+            <p>
+              <strong className="text-slate-900">Guest:</strong>{" "}
+              {selectedBookingForRelease?.customerId?.name ||
+                selectedBookingForRelease?.guestInfo?.name ||
+                "Guest"}
+            </p>
+            <p>
+              <strong className="text-slate-900">Property:</strong>{" "}
+              {selectedBookingForRelease?.propertyId?.title}
+            </p>
+            <p>
+              <strong className="text-slate-900">Dates to Release:</strong>{" "}
+              <span className="font-semibold text-red-600">
+                {formatDate(selectedBookingForRelease?.checkIn)} to{" "}
+                {formatDate(selectedBookingForRelease?.checkOut)}
+              </span>
+            </p>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Releasing these dates will immediately unlock the calendar on the
+            live Roamigo website, allowing new guests to enquire and book these
+            dates. The reservation status will be updated to{" "}
+            <strong>CANCELLED</strong>.
+          </p>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setSelectedBookingForRelease(null)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-all"
+            >
+              Keep Locked
+            </button>
+            <button
+              type="button"
+              disabled={releasing}
+              onClick={handleReleaseBookingDates}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 transition-all"
+            >
+              {releasing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Confirm Release Dates</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

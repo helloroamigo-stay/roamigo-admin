@@ -1,4 +1,5 @@
 import React from 'react';
+import { Select } from 'antd';
 import {
   UploadCloud,
   Loader2,
@@ -13,18 +14,34 @@ import {
 import { getFullUploadUrl } from '../../services/api';
 
 const STANDARD_AMENITIES = [
-  'Private Heated Infinity Pool',
-  'Dedicated Executive Chef',
-  '24/7 Butler Service',
-  'Private Beach Path',
-  'Helipad Access',
-  'High-Speed Starlink Wi-Fi',
-  'Steam Room & Sauna',
-  'Pet Friendly Yard',
-  'Air Conditioning',
-  'Fully Equipped Kitchen',
-  'Barbecue Grill',
-  'Home Theatre Room'
+  'Pet Friendly',
+  'Private Pool',
+  'Indoor Games',
+  'Outdoor Games',
+  'Lawn',
+  'BBQ',
+  'Music Speaker',
+  'Gazebo',
+  'Wi-fi',
+  'TV',
+  'Kitchen(Only Light Cooking)',
+  'Kitchen Extra Cost',
+  'Refrigerator',
+  'Indoor Parking',
+  'Outdoor Parking',
+  'Balcony/ Terrace',
+  'Water Purifier',
+  'Driver/Staff Accommodation',
+  'CCTV',
+  'Fire Extinguisher',
+  'Work Desk',
+  'Bathroom',
+  'Geyser',
+  'Extra Mattress',
+  'Toiletries',
+  'Wardrobe',
+  'Towels',
+  'Outdoor Sitting Area'
 ];
 
 export const PropertyFormModal = ({
@@ -51,7 +68,7 @@ export const PropertyFormModal = ({
   const handleAddSpace = () => {
     setForm((prev) => ({
       ...prev,
-      spaces: [...(prev.spaces || []), { title: '', desc: '' }]
+      spaces: [...(prev.spaces || []), { title: '', desc: '', image: '' }]
     }));
   };
 
@@ -115,15 +132,15 @@ export const PropertyFormModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0f172a] border border-gray-800 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-gray-800 flex justify-between items-center shrink-0">
-          <h3 className="text-lg font-bold text-white">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50/50">
+          <h3 className="text-lg font-bold text-slate-900">
             {editingPropertyId ? 'Edit Property Listing' : 'Add New Property Listing'}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-all cursor-pointer text-sm font-semibold"
+            className="text-slate-400 hover:text-slate-700 transition-all cursor-pointer text-sm font-semibold p-1 hover:bg-slate-100 rounded-lg"
           >
             Cancel
           </button>
@@ -148,20 +165,31 @@ export const PropertyFormModal = ({
               </select>
             </div>
 
-            <div>
-              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Collection Category</label>
-              <select
-                value={form.collectionId}
-                onChange={(e) => setForm({ ...form, collectionId: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer"
-              >
-                <option value="">None (Standard Listing)</option>
-                {collections.map((col) => (
-                  <option key={col._id} value={col._id}>
-                    {col.title}
-                  </option>
-                ))}
-              </select>
+            <div className="md:col-span-2">
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Featured Collections (Select Multiple)</label>
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="Select feature collections..."
+                value={
+                  Array.isArray(form.collections) && form.collections.length > 0
+                    ? form.collections
+                    : (form.collectionId ? [form.collectionId] : [])
+                }
+                onChange={(selectedValues) => {
+                  setForm({
+                    ...form,
+                    collections: selectedValues,
+                    collectionId: selectedValues.length > 0 ? selectedValues[0] : ''
+                  });
+                }}
+                className="w-full text-sm"
+                style={{ width: '100%' }}
+                options={collections.map((col) => ({
+                  label: col.title,
+                  value: col._id || col.id
+                }))}
+              />
             </div>
           </div>
 
@@ -224,7 +252,7 @@ export const PropertyFormModal = ({
           </div>
 
           {/* Pricing & Capacity Specs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Price / Night (₹) *</label>
               <input
@@ -239,6 +267,17 @@ export const PropertyFormModal = ({
             </div>
 
             <div>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Base Guests</label>
+              <input
+                type="number"
+                value={form.baseGuests || 2}
+                onChange={(e) => setForm({ ...form, baseGuests: e.target.value })}
+                className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                min="1"
+              />
+            </div>
+
+            <div>
               <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Guests Max *</label>
               <input
                 type="number"
@@ -247,6 +286,17 @@ export const PropertyFormModal = ({
                 onChange={(e) => setForm({ ...form, guestsMax: e.target.value })}
                 className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
                 min="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Kids</label>
+              <input
+                type="number"
+                value={form.kidsCount || 0}
+                onChange={(e) => setForm({ ...form, kidsCount: e.target.value })}
+                className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                min="0"
               />
             </div>
 
@@ -366,7 +416,7 @@ export const PropertyFormModal = ({
           {/* Images Section */}
           <div className="space-y-3">
             <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wide">Property Images *</label>
-            
+
             {/* Image Thumbnails Previews */}
             {form.images.split(',').map((img) => img.trim()).filter(Boolean).length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 p-3 bg-gray-900/30 border border-gray-850 rounded-2xl">
@@ -437,7 +487,7 @@ export const PropertyFormModal = ({
           {/* Meals & Menu Section */}
           <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
             <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Meals Menu & Dining Details</h4>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Meal description text area */}
               <div>
@@ -451,23 +501,23 @@ export const PropertyFormModal = ({
                 />
               </div>
 
-              {/* Meal PDF Menu Upload */}
+              {/* Meal Menu File (Image or PDF) Upload */}
               <div className="space-y-2">
-                <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Property Meal Menu PDF</label>
-                
-                {form.mealsPdf ? (
+                <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Property Meal Menu (Image or PDF)</label>
+
+                {form.mealsPdf || form.mealsImage ? (
                   <div className="flex items-center justify-between p-3.5 bg-gray-900 border border-gray-800 rounded-xl">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <FileText className="w-5 h-5 text-red-400 shrink-0" />
+                      <FileText className="w-5 h-5 text-brand-400 shrink-0" />
                       <div className="truncate">
-                        <span className="text-xs font-medium text-white truncate block">Meal Menu Document</span>
+                        <span className="text-xs font-medium text-white truncate block">Meal Menu File</span>
                         <a
-                          href={getFullUploadUrl(form.mealsPdf)}
+                          href={getFullUploadUrl(form.mealsPdf || form.mealsImage)}
                           target="_blank"
                           rel="noreferrer"
                           className="text-[10px] text-brand-400 hover:underline truncate block"
                         >
-                          View PDF file
+                          View Menu File
                         </a>
                       </div>
                     </div>
@@ -475,7 +525,7 @@ export const PropertyFormModal = ({
                       type="button"
                       onClick={onRemovePdf}
                       className="p-1.5 bg-gray-800 hover:bg-red-950/40 hover:text-red-400 text-gray-400 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-900/30"
-                      title="Remove PDF"
+                      title="Remove Menu File"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -485,18 +535,18 @@ export const PropertyFormModal = ({
                     {uploadingPdf ? (
                       <div className="flex flex-col items-center gap-1.5">
                         <Loader2 className="w-5 h-5 text-brand-500 animate-spin" />
-                        <span className="text-[11px] text-gray-400">Uploading PDF document...</span>
+                        <span className="text-[11px] text-gray-400">Uploading meal file...</span>
                       </div>
                     ) : (
                       <label className="flex flex-col items-center gap-1.5 cursor-pointer w-full text-center">
                         <FileText className="w-5 h-5 text-gray-500" />
                         <div>
-                          <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Upload Meal Menu PDF</span>
-                          <p className="text-[9px] text-gray-500 mt-0.5">Supports PDF menu files up to 10MB</p>
+                          <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Upload Meal Menu (Image or PDF)</span>
+                          <p className="text-[9px] text-gray-500 mt-0.5">Supports images (JPG, PNG, WEBP) or PDF menu files</p>
                         </div>
                         <input
                           type="file"
-                          accept="application/pdf"
+                          accept="image/*,application/pdf,.pdf"
                           onChange={onPdfUpload}
                           className="hidden"
                         />
@@ -530,25 +580,33 @@ export const PropertyFormModal = ({
             ) : (
               <div className="space-y-3">
                 {(form.spaces || []).map((space, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-gray-900/70 p-3 border border-gray-800 rounded-xl">
+                  <div key={idx} className="flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-gray-900/70 p-3 border border-gray-800 rounded-xl">
                     <input
                       type="text"
                       placeholder="Space Title (e.g. Infinity Pool Deck)"
                       value={space.title}
                       onChange={(e) => handleSpaceChange(idx, 'title', e.target.value)}
-                      className="w-1/3 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                      className="w-full md:w-1/3 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500 font-semibold"
                     />
                     <input
                       type="text"
-                      placeholder="Description (e.g. Heated pool overlooking green cliffside)"
+                      placeholder="Description (e.g. Heated pool overlooking cliffside)"
                       value={space.desc}
                       onChange={(e) => handleSpaceChange(idx, 'desc', e.target.value)}
                       className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
                     />
+                    <input
+                      type="text"
+                      placeholder="Image URL (Optional)"
+                      value={space.image || ''}
+                      onChange={(e) => handleSpaceChange(idx, 'image', e.target.value)}
+                      className="w-full md:w-1/4 bg-gray-950 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                    />
                     <button
                       type="button"
                       onClick={() => handleRemoveSpace(idx)}
-                      className="text-gray-500 hover:text-red-400 p-1 rounded-lg transition-all"
+                      className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg transition-all self-end md:self-center cursor-pointer"
+                      title="Remove Space"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -560,45 +618,45 @@ export const PropertyFormModal = ({
 
           {/* Home Truths & House Rules */}
           <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Info className="w-4 h-4" />
-                <span>Home Truths & House Rules</span>
-              </h4>
-              <button
-                type="button"
-                onClick={handleAddHomeTruth}
-                className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 font-semibold cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Rule / Truth</span>
-              </button>
-            </div>
+            <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Info className="w-4 h-4" />
+              <span>Home Truths (Full Description)</span>
+            </h4>
+            <textarea
+              rows={4}
+              value={typeof form.homeTruths === 'string' ? form.homeTruths : (Array.isArray(form.homeTruths) ? form.homeTruths.join('\n') : '')}
+              onChange={(e) => setForm({ ...form, homeTruths: e.target.value })}
+              className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500"
+              placeholder="Enter full description of home truths, villa nuances, location notes..."
+            />
+          </div>
 
-            {(form.homeTruths || []).length === 0 ? (
-              <p className="text-xs text-gray-500 italic">No home truths added. Add important guest rules or notes.</p>
-            ) : (
-              <div className="space-y-2">
-                {(form.homeTruths || []).map((truth, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      placeholder="e.g. No loud music allowed past 10 PM in open lawn areas."
-                      value={truth}
-                      onChange={(e) => handleHomeTruthChange(idx, e.target.value)}
-                      className="flex-1 bg-gray-900/70 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveHomeTruth(idx)}
-                      className="text-gray-500 hover:text-red-400 p-1 rounded-lg transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
+            <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Info className="w-4 h-4" />
+              <span>House Rules (Full Description)</span>
+            </h4>
+            <textarea
+              rows={4}
+              value={typeof form.houseRules === 'string' ? form.houseRules : (Array.isArray(form.houseRules) ? form.houseRules.join('\n') : '')}
+              onChange={(e) => setForm({ ...form, houseRules: e.target.value })}
+              className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500"
+              placeholder="Enter full description of guest rules, quiet hours, smoking/pet policy, pool guidelines..."
+            />
+          </div>
+
+          <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-2xl space-y-4">
+            <h4 className="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="w-4 h-4" />
+              <span>Cancellation Policy & Terms</span>
+            </h4>
+            <textarea
+              rows={5}
+              value={form.cancellationPolicy || ''}
+              onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
+              className="w-full bg-gray-900/70 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500 leading-relaxed"
+              placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want"
+            />
           </div>
 
           {/* Nearby Places & Landmarks */}

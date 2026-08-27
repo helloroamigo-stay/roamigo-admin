@@ -13,9 +13,33 @@ const apiClient = axios.create({
 });
 
 
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('roamigo_admin_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.response?.status === 401) {
+      const hadToken = !!localStorage.getItem('roamigo_admin_token');
+      localStorage.removeItem('roamigo_admin_token');
+
+      // Notify application of session/token expiration
+      if (hadToken && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('session_expired', {
+            detail: { message: 'Your token has expired. Please log in again to continue.' }
+          })
+        );
+      }
+    }
 
     const message = error.response?.data?.message || 'Something went wrong';
     const code = error.response?.data?.errorCode || 'API_ERROR';
@@ -29,6 +53,7 @@ export const authAPI = {
   login: (email, password) => apiClient.post('/auth/login', { email, password }),
   logout: () => apiClient.post('/auth/logout'),
   getMe: () => apiClient.get('/auth/me'),
+  checkHealth: () => apiClient.get('/health'),
 };
 
 export const adminAPI = {
@@ -40,6 +65,8 @@ export const adminAPI = {
   // Providers
   getProviders: () => apiClient.get('/admin/providers'),
   getProviderById: (id) => apiClient.get(`/admin/providers/${id}`),
+  getProviderProperties: (id) => apiClient.get(`/admin/providers/${id}/properties`),
+  getProviderBookings: (id) => apiClient.get(`/admin/providers/${id}/bookings`),
   approveProvider: (id) => apiClient.patch(`/admin/providers/${id}/approve`),
   rejectProvider: (id) => apiClient.patch(`/admin/providers/${id}/reject`),
   suspendProvider: (id) => apiClient.patch(`/admin/providers/${id}/suspend`),
@@ -47,6 +74,12 @@ export const adminAPI = {
   // Properties
   getProperties: () => apiClient.get('/admin/properties'),
   getPropertyById: (id) => apiClient.get(`/admin/properties/${id}`),
+  getPropertyAvailability: (propertyId) => apiClient.get(`/admin/properties/${propertyId}/availability`),
+  releasePropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/release-dates`, payload),
+  blockPropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/block-dates`, payload),
+  addICalFeed: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/ical-feeds`, payload),
+  deleteICalFeed: (propertyId, feedId) => apiClient.delete(`/admin/properties/${propertyId}/ical-feeds/${feedId}`),
+  syncICalFeeds: (propertyId) => apiClient.post(`/admin/properties/${propertyId}/sync-ical`),
   createProperty: (propertyData) => apiClient.post('/admin/properties', propertyData),
   updateProperty: (id, propertyData) => apiClient.patch(`/admin/properties/${id}`, propertyData),
   updatePropertyStatus: (id, status) => apiClient.patch(`/admin/properties/${id}/status`, { status }),
@@ -57,6 +90,9 @@ export const adminAPI = {
   // Bookings
   getBookings: () => apiClient.get('/admin/bookings'),
   getBookingById: (id) => apiClient.get(`/admin/bookings/${id}`),
+  updateBookingLeadStatus: (id, leadStatus) => apiClient.patch(`/admin/bookings/${id}/lead-status`, { leadStatus }),
+  confirmEnquiry: (id, payload) => apiClient.patch(`/admin/bookings/${id}/confirm`, payload),
+  releaseBookingDates: (bookingId) => apiClient.post(`/admin/bookings/${bookingId}/release`),
 
   // Payments, Refunds & Payouts
   getPayments: () => apiClient.get('/admin/payments'),
@@ -68,6 +104,7 @@ export const adminAPI = {
   getCities: () => apiClient.get('/admin/cities'),
   createCity: (cityData) => apiClient.post('/admin/cities', cityData),
   updateCity: (id, cityData) => apiClient.patch(`/admin/cities/${id}`, cityData),
+  reorderCities: (citiesOrder) => apiClient.patch('/admin/cities/reorder', { cities: citiesOrder }),
   deleteCity: (id) => apiClient.delete(`/admin/cities/${id}`),
 
   // Collections CRUD
@@ -75,6 +112,11 @@ export const adminAPI = {
   createCollection: (colData) => apiClient.post('/admin/collections', colData),
   updateCollection: (id, colData) => apiClient.patch(`/admin/collections/${id}`, colData),
   deleteCollection: (id) => apiClient.delete(`/admin/collections/${id}`),
+
+  // Partner Enquiries
+  getPartnerEnquiries: () => apiClient.get('/admin/partner-enquiries'),
+  updatePartnerEnquiryStatus: (id, status) => apiClient.patch(`/admin/partner-enquiries/${id}/status`, { status }),
+  deletePartnerEnquiry: (id) => apiClient.delete(`/admin/partner-enquiries/${id}`),
 };
 
 export const getFullUploadUrl = (path) => {
