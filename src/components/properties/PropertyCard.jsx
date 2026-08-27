@@ -173,15 +173,14 @@ export const PropertyCard = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onOpenCalendarModal && onOpenCalendarModal(p)}
+            <Link
+              to={`/properties/${p._id}/calendar`}
               className="flex items-center justify-center gap-1.5 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-semibold cursor-pointer transition-all shrink-0"
-              title="Manage calendar & release dates"
+              title="Manage calendar & availability"
             >
               <Calendar className="w-4 h-4 text-amber-600" />
               <span>Dates</span>
-            </button>
+            </Link>
 
             <Link
               to={`/properties/review/${p._id}`}

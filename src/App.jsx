@@ -14,6 +14,7 @@ import Providers from "./pages/Providers";
 import Properties from "./pages/Properties";
 import PropertyReview from "./pages/PropertyReview";
 import PropertyForm from "./pages/PropertyForm";
+import PropertyCalendarPage from "./pages/PropertyCalendarPage";
 import Enquiries from "./pages/Enquiries";
 import PartnerEnquiries from "./pages/PartnerEnquiries";
 import Payments from "./pages/Payments";
@@ -55,6 +56,7 @@ const AdminLayout = () => {
             <Route path="/properties/new" element={<PropertyForm />} />
             <Route path="/properties/edit/:id" element={<PropertyForm />} />
             <Route path="/properties/review/:id" element={<PropertyReview />} />
+            <Route path="/properties/:id/calendar" element={<PropertyCalendarPage />} />
             <Route path="/enquiries" element={<Enquiries />} />
             <Route
               path="/bookings"

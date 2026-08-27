@@ -19,7 +19,6 @@ import { Pagination, Table, Select } from "antd";
 import { PropertyTabs } from "../components/properties/PropertyTabs";
 import { PropertyCard } from "../components/properties/PropertyCard";
 import { PropertyFormModal } from "../components/properties/PropertyFormModal";
-import { PropertyCalendarModal } from "../components/properties/PropertyCalendarModal";
 
 const Properties = () => {
   const [properties, setProperties] = useState([]);
@@ -560,17 +559,13 @@ const Properties = () => {
       align: "right",
       render: (_, p) => (
         <div className="flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setCalendarProperty(p);
-              setIsCalendarModalOpen(true);
-            }}
+          <Link
+            to={`/properties/${p._id}/calendar`}
             className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-            title="Manage calendar & release dates"
+            title="Manage calendar & availability"
           >
             <Calendar className="w-3.5 h-3.5" />
-          </button>
+          </Link>
 
           <Link
             to={`/properties/review/${p._id}`}
@@ -790,16 +785,6 @@ const Properties = () => {
         onPdfUpload={handlePdfUpload}
         onRemovePdf={handleRemovePdf}
         onSubmit={handleCreateSubmit}
-      />
-
-      {/* Property Calendar & Date Management Modal */}
-      <PropertyCalendarModal
-        property={calendarProperty}
-        isOpen={isCalendarModalOpen}
-        onClose={() => {
-          setIsCalendarModalOpen(false);
-          setCalendarProperty(null);
-        }}
       />
     </div>
   );

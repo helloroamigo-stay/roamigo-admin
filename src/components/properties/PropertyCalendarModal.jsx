@@ -11,6 +11,13 @@ import {
   User,
   ShieldCheck,
   Search,
+  Copy,
+  Check,
+  Link,
+  Globe,
+  Plus,
+  ExternalLink,
+  Layers,
 } from "lucide-react";
 import { adminAPI } from "../../services/api";
 import dayjs from "dayjs";
@@ -30,12 +37,24 @@ export const PropertyCalendarModal = ({ property, isOpen, onClose }) => {
   const [blockRange, setBlockRange] = useState(null);
   const [blockReason, setBlockReason] = useState("Admin manual block");
 
-  const fetchAvailability = async () => {
+  // iCal Sync state
+  const [icalFeeds, setIcalFeeds] = useState([]);
+  const [newFeedName, setNewFeedName] = useState("Airbnb");
+  const [newFeedUrl, setNewFeedUrl] = useState("");
+  const [addingFeed, setAddingFeed] = useState(false);
+  const [syncingFeeds, setSyncingFeeds] = useState(false);
+  const [copiedICal, setCopiedICal] = useState(false);
+
+  const fetchPropertyData = async () => {
     if (!property?._id) return;
     try {
       setLoading(true);
-      const res = await adminAPI.getPropertyAvailability(property._id);
-      setAvailabilities(res.data?.availabilities || []);
+      const [availRes, propRes] = await Promise.all([
+        adminAPI.getPropertyAvailability(property._id),
+        adminAPI.getPropertyById(property._id),
+      ]);
+      setAvailabilities(availRes.data?.availabilities || []);
+      setIcalFeeds(propRes.data?.property?.icalFeeds || property.icalFeeds || []);
     } catch (err) {
       console.error("Failed to load property availability:", err);
       message.error(err.message || "Could not load calendar availability.");
@@ -43,6 +62,8 @@ export const PropertyCalendarModal = ({ property, isOpen, onClose }) => {
       setLoading(false);
     }
   };
+
+  const fetchAvailability = fetchPropertyData;
 
   useEffect(() => {
     if (isOpen && property?._id) {
@@ -119,6 +140,69 @@ export const PropertyCalendarModal = ({ property, isOpen, onClose }) => {
       message.error(err.message || "Failed to block date range.");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const exportICalUrl = `https://roamigo-backend.in/api/v1/properties/${property?._id}/calendar.ics`;
+
+  const handleCopyExportICal = () => {
+    navigator.clipboard.writeText(exportICalUrl);
+    setCopiedICal(true);
+    message.success("Roamigo iCal export URL copied to clipboard!");
+    setTimeout(() => setCopiedICal(false), 3000);
+  };
+
+  const handleAddFeed = async (e) => {
+    e.preventDefault();
+    if (!newFeedUrl || !newFeedUrl.trim()) {
+      message.warning("Please paste a valid iCal feed URL");
+      return;
+    }
+    try {
+      setAddingFeed(true);
+      const res = await adminAPI.addICalFeed(property._id, {
+        name: newFeedName || "Airbnb",
+        url: newFeedUrl.trim(),
+      });
+      message.success(res.message || "iCal feed added and synced!");
+      setIcalFeeds(res.data?.icalFeeds || []);
+      setNewFeedUrl("");
+      fetchAvailability();
+    } catch (err) {
+      console.error("Error adding iCal feed:", err);
+      message.error(err.message || "Failed to add iCal feed.");
+    } finally {
+      setAddingFeed(false);
+    }
+  };
+
+  const handleDeleteFeed = async (feedId) => {
+    try {
+      setActionLoading(true);
+      const res = await adminAPI.deleteICalFeed(property._id, feedId);
+      message.success(res.message || "Feed removed");
+      setIcalFeeds(res.data?.icalFeeds || []);
+      fetchAvailability();
+    } catch (err) {
+      console.error("Error deleting iCal feed:", err);
+      message.error(err.message || "Failed to delete iCal feed.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSyncAllFeeds = async () => {
+    try {
+      setSyncingFeeds(true);
+      const res = await adminAPI.syncICalFeeds(property._id);
+      message.success(res.message || "iCal feeds synced!");
+      setIcalFeeds(res.data?.icalFeeds || []);
+      fetchAvailability();
+    } catch (err) {
+      console.error("Error syncing iCal feeds:", err);
+      message.error(err.message || "Failed to sync iCal feeds.");
+    } finally {
+      setSyncingFeeds(false);
     }
   };
 
@@ -240,6 +324,170 @@ export const PropertyCalendarModal = ({ property, isOpen, onClose }) => {
           </div>
         </div>
 
+        {/* --- iCAL CALENDAR SYNC SECTION (AIRBNB, GOIBIBO, MMT) --- */}
+        <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-4 shadow-lg border border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>iCal Calendar Sync (Airbnb, Goibibo, MakeMyTrip)</span>
+                  <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                    Auto-Sync Active
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Automatically sync availability with external OTA platforms to prevent double bookings.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSyncAllFeeds}
+              disabled={syncingFeeds}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 self-start sm:self-auto"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncingFeeds ? "animate-spin" : ""}`} />
+              <span>Sync All Feeds Now</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 1. Export Roamigo iCal Feed */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                  <span>1. Export Roamigo Calendar (.ics)</span>
+                </span>
+                <span className="text-[10px] text-amber-400 font-mono font-semibold">
+                  For Airbnb / Goibibo
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Paste this link into Airbnb or Goibibo ("Import Calendar") so they automatically block Roamigo bookings.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={exportICalUrl}
+                  className="flex-1 bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-1.5 text-[11px] font-mono text-slate-300 focus:outline-none truncate"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyExportICal}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${copiedICal
+                      ? "bg-emerald-600 text-white"
+                      : "bg-amber-500 hover:bg-amber-400 text-slate-950"
+                    }`}
+                >
+                  {copiedICal ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedICal ? "Copied!" : "Copy URL"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Import External iCal Feeds */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Link className="w-3.5 h-3.5 text-sky-400" />
+                  <span>2. Import External OTA Calendar</span>
+                </span>
+                <span className="text-[10px] text-sky-400 font-semibold">
+                  Block dates on Roamigo
+                </span>
+              </div>
+              <form onSubmit={handleAddFeed} className="space-y-2">
+                <div className="flex flex-col items-center gap-2">
+                  <select
+                    value={newFeedName}
+                    onChange={(e) => setNewFeedName(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none"
+                  >
+                    <option value="Airbnb">Airbnb</option>
+                    <option value="Goibibo">Goibibo</option>
+                    <option value="MakeMyTrip">MakeMyTrip</option>
+                    <option value="VRBO">VRBO</option>
+                    <option value="Booking.com">Booking.com</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input
+                    type="url"
+                    placeholder="https://www.airbnb.com/calendar/ical/..."
+                    value={newFeedUrl}
+                    onChange={(e) => setNewFeedUrl(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={addingFeed || !newFeedUrl}
+                    className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0"
+                  >
+                    {addingFeed ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    <span>Add Feed</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          {/* Active Synced iCal Feeds List */}
+          {icalFeeds.length > 0 && (
+            <div className="space-y-2 border-t border-slate-800 pt-3">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Configured External Sync Feeds ({icalFeeds.length})
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {icalFeeds.map((feed) => (
+                  <div
+                    key={feed._id || feed.url}
+                    className="flex items-center justify-between p-2.5 bg-slate-800 border border-slate-700/60 rounded-xl"
+                  >
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-amber-400">
+                          {feed.name}
+                        </span>
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${feed.syncStatus === "SUCCESS"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              : feed.syncStatus === "FAILED"
+                                ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                                : "bg-slate-700 text-slate-400"
+                            }`}
+                        >
+                          {feed.syncStatus || "PENDING"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {feed.lastSyncMessage || feed.url}
+                      </p>
+                      {feed.lastSyncedAt && (
+                        <p className="text-[9px] text-slate-500 mt-0.5">
+                          Last synced: {dayjs(feed.lastSyncedAt).format("DD MMM, HH:mm")}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFeed(feed._id)}
+                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700/60 rounded-lg cursor-pointer transition-all shrink-0"
+                      title="Remove iCal Feed"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Search & List of Blocked/Booked Dates */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -312,6 +560,11 @@ export const PropertyCalendarModal = ({ property, isOpen, onClose }) => {
                               <User className="w-3 h-3" />
                               <span>Guest Reservation</span>
                             </span>
+                          ) : item.source === "ICAL_SYNC" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                              <Globe className="w-3 h-3 text-sky-600" />
+                              <span>iCal Sync</span>
+                            </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                               <Lock className="w-3 h-3" />
@@ -331,6 +584,10 @@ export const PropertyCalendarModal = ({ property, isOpen, onClose }) => {
                                 </span>
                               )}
                             </div>
+                          ) : item.notes || item.source === "ICAL_SYNC" ? (
+                            <span className="text-slate-700 font-medium">
+                              {item.notes || "Synced from external iCal"}
+                            </span>
                           ) : (
                             <span className="text-slate-400 italic">
                               Admin block / Override
