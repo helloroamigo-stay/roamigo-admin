@@ -1,8 +1,21 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://roamigo-backend.in/api/v1';
-// const API_BASE_URL = 'http://localhost:5000/api/v1';
-// const API_BASE_URL = 'https://test.roamigo-backend.in/api/v1';
+const getApiBaseUrl = () => {
+  const hostname = window.location.hostname;
+
+  if (hostname === 'roamigo.in' || hostname === 'admin.roamigo.in') {
+    return 'https://roamigo-backend.in/api/v1';
+  }
+
+  if (hostname === 'localhost') {
+    return 'http://localhost:5000/api/v1'
+  }
+
+  return 'https://test.roamigo-backend.in/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -77,6 +90,7 @@ export const adminAPI = {
   getPropertyAvailability: (propertyId) => apiClient.get(`/admin/properties/${propertyId}/availability`),
   releasePropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/release-dates`, payload),
   blockPropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/block-dates`, payload),
+  updateCustomRates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/custom-rates`, payload),
   addICalFeed: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/ical-feeds`, payload),
   deleteICalFeed: (propertyId, feedId) => apiClient.delete(`/admin/properties/${propertyId}/ical-feeds/${feedId}`),
   syncICalFeeds: (propertyId) => apiClient.post(`/admin/properties/${propertyId}/sync-ical`),
