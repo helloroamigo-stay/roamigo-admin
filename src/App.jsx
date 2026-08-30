@@ -45,7 +45,7 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans overflow-x-hidden">
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <div className="flex-1 flex flex-col lg:pl-68 pl-0 min-h-screen relative z-10 w-full overflow-x-hidden">
+      <div className="flex-1 flex flex-col lg:pl-20 pl-0 min-h-screen relative z-10 w-full overflow-x-hidden">
         <Header onOpenMobile={() => setMobileOpen(true)} />
         <main className="flex-1 bg-slate-50/80 relative">
           <Routes>
@@ -56,7 +56,10 @@ const AdminLayout = () => {
             <Route path="/properties/new" element={<PropertyForm />} />
             <Route path="/properties/edit/:id" element={<PropertyForm />} />
             <Route path="/properties/review/:id" element={<PropertyReview />} />
-            <Route path="/properties/:id/calendar" element={<PropertyCalendarPage />} />
+            <Route
+              path="/properties/:id/calendar"
+              element={<PropertyCalendarPage />}
+            />
             <Route path="/enquiries" element={<Enquiries />} />
             <Route
               path="/bookings"
