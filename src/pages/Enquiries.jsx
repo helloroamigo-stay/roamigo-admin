@@ -108,10 +108,16 @@ const Enquiries = () => {
 
   const handleOpenConfirmModal = (enq) => {
     setSelectedEnquiryForConfirm(enq);
+    const roomsText =
+      enq.rooms && enq.rooms.length > 0
+        ? ` (Rooms: ${enq.rooms
+            .map((r) => String(r).replace(/^room\s*/i, ""))
+            .join(", ")})`
+        : "";
     setCustomMessage(
       `We are pleased to share the details and confirm your booking enquiry for ${
         enq.propertyId?.title || "your stay"
-      }! Your requested dates are now reserved. Please complete payment within 24 hours to finalize your reservation.`
+      }${roomsText}! Your requested dates are now reserved. Please complete payment within 24 hours to finalize your reservation.`
     );
   };
 
@@ -486,6 +492,16 @@ const Enquiries = () => {
                                 enq.propertyId?.city ||
                                 "India"}
                             </div>
+                            {enq.rooms && enq.rooms.length > 0 && (
+                              <div className="text-[10px] text-brand-700 bg-brand-50 border border-brand-100 rounded px-1.5 py-0.5 w-fit mt-1 font-semibold">
+                                Rooms:{" "}
+                                {enq.rooms
+                                  .map((r) =>
+                                    String(r).replace(/^room\s*/i, "")
+                                  )
+                                  .join(", ")}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

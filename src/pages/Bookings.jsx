@@ -240,6 +240,11 @@ const Bookings = () => {
                           <div className="text-xs text-gray-500 truncate">
                             {bk.propertyId?.address || "N/A"}
                           </div>
+                          {bk.rooms && bk.rooms.length > 0 && (
+                            <div className="text-[10px] text-brand-300 bg-gray-900 border border-gray-800 rounded px-1.5 py-0.5 w-fit mt-1">
+                              Rooms: {bk.rooms.join(", ")}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
