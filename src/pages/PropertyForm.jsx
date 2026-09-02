@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { adminAPI, uploadAPI, getFullUploadUrl } from '../services/api';
-import { Upload, Select, Input, InputNumber, Checkbox, Tabs, Button as AntdButton, message } from 'antd';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { adminAPI, uploadAPI, getFullUploadUrl } from "../services/api";
+import {
+  Upload,
+  Select,
+  Input,
+  InputNumber,
+  Checkbox,
+  Tabs,
+  Button as AntdButton,
+  message,
+} from "antd";
 import {
   ArrowLeft,
   UploadCloud,
@@ -23,40 +32,40 @@ import {
   Building,
   GripVertical,
   Move,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 
 const { TextArea } = Input;
 
 const STANDARD_AMENITIES = [
-  'Pet Friendly',
-  'Private Pool',
-  'Indoor Games',
-  'Outdoor Games',
-  'Lawn',
-  'BBQ',
-  'Music Speaker',
-  'Gazebo',
-  'Wi-fi',
-  'TV',
-  'Kitchen(Only Light Cooking)',
-  'Kitchen Extra Cost',
-  'Refrigerator',
-  'Indoor Parking',
-  'Outdoor Parking',
-  'Balcony/ Terrace',
-  'Water Purifier',
-  'Driver/Staff Accommodation',
-  'CCTV',
-  'Fire Extinguisher',
-  'Work Desk',
-  'Bathroom',
-  'Geyser',
-  'Extra Mattress',
-  'Toiletries',
-  'Wardrobe',
-  'Towels',
-  'Outdoor Sitting Area'
+  "Pet Friendly",
+  "Private Pool",
+  "Indoor Games",
+  "Outdoor Games",
+  "Lawn",
+  "BBQ",
+  "Music Speaker",
+  "Gazebo",
+  "Wi-fi",
+  "TV",
+  "Kitchen(Only Light Cooking)",
+  "Kitchen Extra Cost",
+  "Refrigerator",
+  "Indoor Parking",
+  "Outdoor Parking",
+  "Balcony/ Terrace",
+  "Water Purifier",
+  "Driver/Staff Accommodation",
+  "CCTV",
+  "Fire Extinguisher",
+  "Work Desk",
+  "Bathroom",
+  "Geyser",
+  "Extra Mattress",
+  "Toiletries",
+  "Wardrobe",
+  "Towels",
+  "Outdoor Sitting Area",
 ];
 
 const PropertyForm = () => {
@@ -75,40 +84,40 @@ const PropertyForm = () => {
 
   // Form State
   const [form, setForm] = useState({
-    providerId: '',
-    title: '',
-    description: '',
-    pricePerNight: '',
+    providerId: "",
+    title: "",
+    description: "",
+    pricePerNight: "",
     baseGuests: 2,
     guestsMax: 2,
     kidsCount: 0,
     bedrooms: 1,
     bathrooms: 1,
-    propertyType: 'VILLA',
-    address: '',
-    cityId: '',
-    city: '',
-    state: '',
-    country: 'India',
-    googleMapsUrl: '',
+    propertyType: "VILLA",
+    address: "",
+    cityId: "",
+    city: "",
+    state: "",
+    country: "India",
+    googleMapsUrl: "",
     images: [], // Array of string URLs/paths
-    tagline: '',
-    collectionId: '',
+    tagline: "",
+    collectionId: "",
     amenities: [],
-    mealsDescription: '',
-    cuisines: '',
-    dietaryNotes: '',
-    mealsImage: '',
-    mealsPdf: '',
+    mealsDescription: "",
+    cuisines: "",
+    dietaryNotes: "",
+    mealsImage: "",
+    mealsPdf: "",
     spaces: [],
-    homeTruths: '',
-    houseRules: '',
+    homeTruths: "",
+    houseRules: "",
     nearbyPlaces: [],
     cancellationPolicy: `Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.
 
 Checkin 2pm 
 Checkout 11am
-Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want`
+Early check-in and late check-out is subject to availability (at an additional fee)`,
   });
 
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -118,17 +127,17 @@ Early check-in and late check-out is subject to availability (at an additional f
   // HTML5 Drag & Drop Image Reordering Handlers
   const handleDragStart = (e, index) => {
     setDraggedImageIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleDropImage = (targetIndex) => {
     if (draggedImageIndex === null || draggedImageIndex === targetIndex) return;
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...prev.images];
       const [draggedItem] = updated.splice(draggedImageIndex, 1);
       updated.splice(targetIndex, 0, draggedItem);
@@ -149,13 +158,13 @@ Early check-in and late check-out is subject to availability (at an additional f
       const [providersRes, citiesRes, collectionsRes] = await Promise.all([
         adminAPI.getProviders(),
         adminAPI.getCities(),
-        adminAPI.getCollections()
+        adminAPI.getCollections(),
       ]);
       setProviders(providersRes.data?.providers || []);
       setCities(citiesRes.data?.cities || []);
       setCollections(collectionsRes.data?.collections || []);
     } catch (err) {
-      console.error('Error fetching form metadata:', err);
+      console.error("Error fetching form metadata:", err);
     }
   };
 
@@ -165,45 +174,68 @@ Early check-in and late check-out is subject to availability (at an additional f
       setError(null);
       const res = await adminAPI.getPropertyById(id);
       const p = res.data?.property;
-      if (!p) throw new Error('Property not found');
+      if (!p) throw new Error("Property not found");
 
       setForm({
-        providerId: p.providerId?._id || p.providerId || '',
-        title: p.title || '',
-        description: p.description || '',
-        pricePerNight: p.pricePerNight || '',
+        providerId: p.providerId?._id || p.providerId || "",
+        title: p.title || "",
+        description: p.description || "",
+        pricePerNight: p.pricePerNight || "",
         baseGuests: p.baseGuests !== undefined ? p.baseGuests : 2,
         guestsMax: p.guestsMax || 2,
         kidsCount: p.kidsCount !== undefined ? p.kidsCount : 0,
         bedrooms: p.bedrooms || 1,
         bathrooms: p.bathrooms || 1,
-        propertyType: p.propertyType || 'VILLA',
-        address: p.address || '',
-        cityId: p.cityId?._id || p.cityId || '',
-        city: p.city || '',
-        state: p.state || '',
-        country: p.country || 'India',
-        googleMapsUrl: p.googleMapsUrl || '',
+        propertyType: p.propertyType || "VILLA",
+        address: p.address || "",
+        cityId: p.cityId?._id || p.cityId || "",
+        city: p.city || "",
+        state: p.state || "",
+        country: p.country || "India",
+        googleMapsUrl: p.googleMapsUrl || "",
         images: p.images || [],
-        collectionId: p.collectionId?._id || p.collectionId || '',
-        collections: Array.isArray(p.collections) && p.collections.length > 0
-          ? p.collections.map(c => typeof c === 'object' ? c._id : c)
-          : (p.collectionId ? [typeof p.collectionId === 'object' ? p.collectionId._id : p.collectionId] : []),
+        collectionId: p.collectionId?._id || p.collectionId || "",
+        collections:
+          Array.isArray(p.collections) && p.collections.length > 0
+            ? p.collections.map((c) => (typeof c === "object" ? c._id : c))
+            : p.collectionId
+            ? [
+                typeof p.collectionId === "object"
+                  ? p.collectionId._id
+                  : p.collectionId,
+              ]
+            : [],
         amenities: p.amenities || [],
-        mealsDescription: p.mealsDescription || '',
-        cuisines: p.cuisines ? (Array.isArray(p.cuisines) ? p.cuisines.join(', ') : p.cuisines) : '',
-        dietaryNotes: p.dietaryNotes || '',
-        mealsImage: p.mealsImage || '',
-        mealsPdf: p.mealsPdf || '',
-        spaces: p.spaces && p.spaces.length > 0 ? p.spaces.map(s => ({ title: s.title || '', desc: s.desc || '', image: s.image || '' })) : [],
-        homeTruths: Array.isArray(p.homeTruths) ? p.homeTruths.join('\n') : (p.homeTruths || ''),
-        houseRules: Array.isArray(p.houseRules) ? p.houseRules.join('\n') : (p.houseRules || ''),
-        nearbyPlaces: p.nearbyPlaces && p.nearbyPlaces.length > 0 ? p.nearbyPlaces : [],
-        cancellationPolicy: p.cancellationPolicy || ''
+        mealsDescription: p.mealsDescription || "",
+        cuisines: p.cuisines
+          ? Array.isArray(p.cuisines)
+            ? p.cuisines.join(", ")
+            : p.cuisines
+          : "",
+        dietaryNotes: p.dietaryNotes || "",
+        mealsImage: p.mealsImage || "",
+        mealsPdf: p.mealsPdf || "",
+        spaces:
+          p.spaces && p.spaces.length > 0
+            ? p.spaces.map((s) => ({
+                title: s.title || "",
+                desc: s.desc || "",
+                image: s.image || "",
+              }))
+            : [],
+        homeTruths: Array.isArray(p.homeTruths)
+          ? p.homeTruths.join("\n")
+          : p.homeTruths || "",
+        houseRules: Array.isArray(p.houseRules)
+          ? p.houseRules.join("\n")
+          : p.houseRules || "",
+        nearbyPlaces:
+          p.nearbyPlaces && p.nearbyPlaces.length > 0 ? p.nearbyPlaces : [],
+        cancellationPolicy: p.cancellationPolicy || "",
       });
     } catch (err) {
-      console.error('Error fetching property for edit:', err);
-      setError(err.message || 'Could not load property details.');
+      console.error("Error fetching property for edit:", err);
+      setError(err.message || "Could not load property details.");
     } finally {
       setLoading(false);
     }
@@ -218,20 +250,27 @@ Early check-in and late check-out is subject to availability (at an additional f
       setUploadingImages(true);
       const res = await uploadAPI.uploadPropertyImages(fileList);
       // Backend returns res = { success: true, data: { imageUrls: [...] } }
-      const uploadedPaths = res.data?.imageUrls || res.data?.images || res.imageUrls || res.images || [];
+      const uploadedPaths =
+        res.data?.imageUrls ||
+        res.data?.images ||
+        res.imageUrls ||
+        res.images ||
+        [];
 
       if (uploadedPaths.length > 0) {
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
-          images: [...(prev.images || []), ...uploadedPaths]
+          images: [...(prev.images || []), ...uploadedPaths],
         }));
-        message.success(`Successfully uploaded ${uploadedPaths.length} image(s)!`);
+        message.success(
+          `Successfully uploaded ${uploadedPaths.length} image(s)!`
+        );
       } else {
-        message.error('Upload completed, but no image paths returned.');
+        message.error("Upload completed, but no image paths returned.");
       }
     } catch (err) {
-      console.error('Image upload failed:', err);
-      message.error(err.message || 'Image upload failed.');
+      console.error("Image upload failed:", err);
+      message.error(err.message || "Image upload failed.");
     } finally {
       setUploadingImages(false);
     }
@@ -242,7 +281,7 @@ Early check-in and late check-out is subject to availability (at an additional f
   // Move Image Left / Right Reorder Handlers
   const handleMoveImageLeft = (index) => {
     if (index === 0) return;
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...prev.images];
       const temp = updated[index - 1];
       updated[index - 1] = updated[index];
@@ -253,7 +292,7 @@ Early check-in and late check-out is subject to availability (at an additional f
 
   const handleMoveImageRight = (index) => {
     if (index === form.images.length - 1) return;
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...prev.images];
       const temp = updated[index + 1];
       updated[index + 1] = updated[index];
@@ -263,9 +302,9 @@ Early check-in and late check-out is subject to availability (at an additional f
   };
 
   const handleRemoveImage = (index) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
     }));
   };
 
@@ -277,16 +316,24 @@ Early check-in and late check-out is subject to availability (at an additional f
     try {
       setUploadingPdf(true);
       const res = await uploadAPI.uploadMealPdf(file);
-      const filePath = res.data?.url || res.data?.pdfUrl || res.data?.imageUrl || res.pdfUrl || res.url || '';
-      const isImage = file.type.startsWith('image/');
-      setForm(prev => ({
+      const filePath =
+        res.data?.url ||
+        res.data?.pdfUrl ||
+        res.data?.imageUrl ||
+        res.pdfUrl ||
+        res.url ||
+        "";
+      const isImage = file.type.startsWith("image/");
+      setForm((prev) => ({
         ...prev,
         mealsPdf: filePath,
-        mealsImage: isImage ? filePath : prev.mealsImage
+        mealsImage: isImage ? filePath : prev.mealsImage,
       }));
-      message.success(`Meal menu ${isImage ? 'image' : 'PDF'} uploaded successfully!`);
+      message.success(
+        `Meal menu ${isImage ? "image" : "PDF"} uploaded successfully!`
+      );
     } catch (err) {
-      message.error(err.message || 'File upload failed.');
+      message.error(err.message || "File upload failed.");
     } finally {
       setUploadingPdf(false);
     }
@@ -294,21 +341,21 @@ Early check-in and late check-out is subject to availability (at an additional f
 
   // Dynamic Array Handlers (Spaces, Home Truths, Nearby)
   const handleAddSpace = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      spaces: [...(prev.spaces || []), { title: '', desc: '', image: '' }]
+      spaces: [...(prev.spaces || []), { title: "", desc: "", image: "" }],
     }));
   };
 
   const handleRemoveSpace = (index) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      spaces: (prev.spaces || []).filter((_, i) => i !== index)
+      spaces: (prev.spaces || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleSpaceChange = (index, field, value) => {
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...(prev.spaces || [])];
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, spaces: updated };
@@ -319,47 +366,55 @@ Early check-in and late check-out is subject to availability (at an additional f
     if (!file) return;
     try {
       const res = await uploadAPI.uploadPropertyImages([file]);
-      const uploadedPaths = res.data?.imageUrls || res.data?.images || res.imageUrls || res.images || [];
+      const uploadedPaths =
+        res.data?.imageUrls ||
+        res.data?.images ||
+        res.imageUrls ||
+        res.images ||
+        [];
       if (uploadedPaths[0]) {
-        handleSpaceChange(index, 'image', uploadedPaths[0]);
-        message.success('Space photo uploaded successfully!');
+        handleSpaceChange(index, "image", uploadedPaths[0]);
+        message.success("Space photo uploaded successfully!");
       }
     } catch (err) {
-      console.error('Space image upload failed:', err);
-      message.error(err.message || 'Failed to upload space photo.');
+      console.error("Space image upload failed:", err);
+      message.error(err.message || "Failed to upload space photo.");
     }
   };
 
   const handleAddHomeTruth = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      homeTruths: [...(prev.homeTruths || []), '']
+      homeTruths: [...(prev.homeTruths || []), ""],
     }));
   };
 
   const handleRemoveHomeTruth = (index) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      homeTruths: (prev.homeTruths || []).filter((_, i) => i !== index)
+      homeTruths: (prev.homeTruths || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleAddNearby = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      nearbyPlaces: [...(prev.nearbyPlaces || []), { name: '', distance: '', type: 'cafe' }]
+      nearbyPlaces: [
+        ...(prev.nearbyPlaces || []),
+        { name: "", distance: "", type: "cafe" },
+      ],
     }));
   };
 
   const handleRemoveNearby = (index) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      nearbyPlaces: (prev.nearbyPlaces || []).filter((_, i) => i !== index)
+      nearbyPlaces: (prev.nearbyPlaces || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleNearbyChange = (index, field, value) => {
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...(prev.nearbyPlaces || [])];
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, nearbyPlaces: updated };
@@ -370,7 +425,7 @@ Early check-in and late check-out is subject to availability (at an additional f
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.pricePerNight) {
-      message.error('Please fill in required fields (Title, Price).');
+      message.error("Please fill in required fields (Title, Price).");
       return;
     }
 
@@ -384,31 +439,43 @@ Early check-in and late check-out is subject to availability (at an additional f
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
         images: form.images,
-        cuisines: typeof form.cuisines === 'string'
-          ? form.cuisines.split(',').map(s => s.trim()).filter(Boolean)
-          : (form.cuisines || []),
-        homeTruths: typeof form.homeTruths === 'string'
-          ? form.homeTruths.split('\n').map(s => s.trim()).filter(Boolean)
-          : (form.homeTruths || []),
-        houseRules: typeof form.houseRules === 'string'
-          ? form.houseRules.split('\n').map(s => s.trim()).filter(Boolean)
-          : (form.houseRules || []),
-        dietaryNotes: form.dietaryNotes || '',
-        cancellationPolicy: form.cancellationPolicy || ''
+        cuisines:
+          typeof form.cuisines === "string"
+            ? form.cuisines
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : form.cuisines || [],
+        homeTruths:
+          typeof form.homeTruths === "string"
+            ? form.homeTruths
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : form.homeTruths || [],
+        houseRules:
+          typeof form.houseRules === "string"
+            ? form.houseRules
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : form.houseRules || [],
+        dietaryNotes: form.dietaryNotes || "",
+        cancellationPolicy: form.cancellationPolicy || "",
       };
 
       if (isEditMode) {
         await adminAPI.updateProperty(id, payload);
-        message.success('Property listing updated successfully!');
+        message.success("Property listing updated successfully!");
       } else {
         await adminAPI.createProperty(payload);
-        message.success('New property listing created!');
+        message.success("New property listing created!");
       }
 
-      navigate('/properties');
+      navigate("/properties");
     } catch (err) {
-      console.error('Submit error:', err);
-      message.error(err.message || 'Failed to save property listing.');
+      console.error("Submit error:", err);
+      message.error(err.message || "Failed to save property listing.");
     } finally {
       setSubmitting(false);
     }
@@ -418,7 +485,9 @@ Early check-in and late check-out is subject to availability (at an additional f
     return (
       <div className="py-28 flex flex-col items-center justify-center space-y-3 font-sans">
         <Loader2 className="w-10 h-10 text-brand-600 animate-spin" />
-        <p className="text-slate-500 text-sm font-medium">Loading property editor workspace...</p>
+        <p className="text-slate-500 text-sm font-medium">
+          Loading property editor workspace...
+        </p>
       </div>
     );
   }
@@ -437,10 +506,13 @@ Early check-in and late check-out is subject to availability (at an additional f
           </Link>
           <div>
             <h1 className="text-xl sm:text-2xl font-display font-bold text-slate-900 tracking-tight">
-              {isEditMode ? `Edit Property: ${form.title || 'Listing'}` : 'Add New Luxury Property Listing'}
+              {isEditMode
+                ? `Edit Property: ${form.title || "Listing"}`
+                : "Add New Luxury Property Listing"}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Configure complete villa specifications, pricing, gallery photos, and guest experiences.
+              Configure complete villa specifications, pricing, gallery photos,
+              and guest experiences.
             </p>
           </div>
         </div>
@@ -457,8 +529,14 @@ Early check-in and late check-out is subject to availability (at an additional f
             disabled={submitting}
             className="py-2.5 px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-xs disabled:opacity-50 flex items-center gap-2 cursor-pointer transition-all"
           >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            <span>{isEditMode ? 'Save & Update Listing' : 'Publish Property'}</span>
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            <span>
+              {isEditMode ? "Save & Update Listing" : "Publish Property"}
+            </span>
           </button>
         </div>
       </div>
@@ -477,7 +555,7 @@ Early check-in and late check-out is subject to availability (at an additional f
           className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs"
           items={[
             {
-              key: 'basic',
+              key: "basic",
               label: (
                 <span className="flex items-center gap-2 font-bold text-xs py-1">
                   <Home className="w-4 h-4 text-brand-600" />
@@ -494,13 +572,16 @@ Early check-in and late check-out is subject to availability (at an additional f
                       </label>
                       <select
                         value={form.providerId}
-                        onChange={(e) => setForm({ ...form, providerId: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, providerId: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 cursor-pointer"
                       >
                         <option value="">Select Provider Host</option>
                         {providers.map((p) => (
                           <option key={p._id} value={p._id}>
-                            {p.businessName || p.userId?.name || 'Unknown'} ({p.userId?.email})
+                            {p.businessName || p.userId?.name || "Unknown"} (
+                            {p.userId?.email})
                           </option>
                         ))}
                       </select>
@@ -515,22 +596,28 @@ Early check-in and late check-out is subject to availability (at an additional f
                         allowClear
                         placeholder="Select feature collections..."
                         value={
-                          Array.isArray(form.collections) && form.collections.length > 0
+                          Array.isArray(form.collections) &&
+                          form.collections.length > 0
                             ? form.collections
-                            : (form.collectionId ? [form.collectionId] : [])
+                            : form.collectionId
+                            ? [form.collectionId]
+                            : []
                         }
                         onChange={(selectedValues) => {
                           setForm({
                             ...form,
                             collections: selectedValues,
-                            collectionId: selectedValues.length > 0 ? selectedValues[0] : ''
+                            collectionId:
+                              selectedValues.length > 0
+                                ? selectedValues[0]
+                                : "",
                           });
                         }}
-                        style={{ width: '100%' }}
+                        style={{ width: "100%" }}
                         size="large"
                         options={collections.map((col) => ({
                           label: col.title,
-                          value: col._id || col.id
+                          value: col._id || col.id,
                         }))}
                       />
                     </div>
@@ -546,7 +633,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                         type="text"
                         required
                         value={form.title}
-                        onChange={(e) => setForm({ ...form, title: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, title: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                         placeholder="e.g. Whispering Pines Beachfront Villa"
                       />
@@ -559,7 +648,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <select
                         required
                         value={form.propertyType}
-                        onChange={(e) => setForm({ ...form, propertyType: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, propertyType: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 cursor-pointer"
                       >
                         <option value="VILLA">Villa</option>
@@ -582,7 +673,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <input
                         type="text"
                         value={form.tagline}
-                        onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, tagline: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                         placeholder="e.g. Wake up to private ocean horizons and infinity pools"
                       />
@@ -596,7 +689,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                         type="number"
                         required
                         value={form.pricePerNight}
-                        onChange={(e) => setForm({ ...form, pricePerNight: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, pricePerNight: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 font-bold focus:outline-none focus:border-brand-500"
                         placeholder="25000"
                       />
@@ -606,52 +701,72 @@ Early check-in and late check-out is subject to availability (at an additional f
                   {/* Specs: Capacity */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                     <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">Base Guests</label>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Base Guests
+                      </label>
                       <input
                         type="number"
                         min={1}
                         value={form.baseGuests}
-                        onChange={(e) => setForm({ ...form, baseGuests: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, baseGuests: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">Max Guests</label>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Max Guests
+                      </label>
                       <input
                         type="number"
                         min={1}
                         value={form.guestsMax}
-                        onChange={(e) => setForm({ ...form, guestsMax: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, guestsMax: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">Kids</label>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Kids
+                      </label>
                       <input
                         type="number"
                         min={0}
                         value={form.kidsCount}
-                        onChange={(e) => setForm({ ...form, kidsCount: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, kidsCount: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">Bedrooms</label>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Bedrooms
+                      </label>
                       <input
                         type="number"
                         min={1}
                         value={form.bedrooms}
-                        onChange={(e) => setForm({ ...form, bedrooms: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, bedrooms: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">Bathrooms</label>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Bathrooms
+                      </label>
                       <input
                         type="number"
                         min={1}
                         value={form.bathrooms}
-                        onChange={(e) => setForm({ ...form, bathrooms: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, bathrooms: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>
@@ -665,16 +780,18 @@ Early check-in and late check-out is subject to availability (at an additional f
                     <textarea
                       rows={5}
                       value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, description: e.target.value })
+                      }
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                       placeholder="Enter detailed villa story, architecture, highlights, and guest experience..."
                     />
                   </div>
                 </div>
-              )
+              ),
             },
             {
-              key: 'gallery',
+              key: "gallery",
               label: (
                 <span className="flex items-center gap-2 font-bold text-xs py-1">
                   <UploadCloud className="w-4 h-4 text-brand-600" />
@@ -686,10 +803,16 @@ Early check-in and late check-out is subject to availability (at an additional f
                   {/* Ant Design Multiple Upload Component */}
                   <div>
                     <label className="block text-slate-900 text-sm font-bold mb-2">
-                      Upload Property Photos (Multiple File Selection & Drag Drop)
+                      Upload Property Photos (Multiple File Selection & Drag
+                      Drop)
                     </label>
                     <p className="text-xs text-slate-500 mb-4">
-                      Select up to 60 images at once. Use the <strong className="text-slate-800">Move Left (←)</strong> and <strong className="text-slate-800">Move Right (→)</strong> buttons to reorder your photos. The 1st photo is used as the cover photo!
+                      Select up to 60 images at once. Use the{" "}
+                      <strong className="text-slate-800">Move Left (←)</strong>{" "}
+                      and{" "}
+                      <strong className="text-slate-800">Move Right (→)</strong>{" "}
+                      buttons to reorder your photos. The 1st photo is used as
+                      the cover photo!
                     </p>
 
                     <Upload.Dragger
@@ -701,8 +824,12 @@ Early check-in and late check-out is subject to availability (at an additional f
                     >
                       <div className="flex flex-col items-center">
                         <UploadCloud className="w-12 h-12 text-brand-600 mb-3" />
-                        <p className="text-slate-900 font-bold text-base">Click or drag images here to upload</p>
-                        <p className="text-xs text-slate-500 mt-1">Supports PNG, JPG, WEBP formats up to 60 photos</p>
+                        <p className="text-slate-900 font-bold text-base">
+                          Click or drag images here to upload
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Supports PNG, JPG, WEBP formats up to 60 photos
+                        </p>
                         {uploadingImages && (
                           <div className="flex items-center gap-2 mt-4 text-brand-600 font-semibold text-xs">
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -718,18 +845,23 @@ Early check-in and late check-out is subject to availability (at an additional f
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <span>Property Photo Sequence ({form.images.length} images)</span>
+                          <span>
+                            Property Photo Sequence ({form.images.length}{" "}
+                            images)
+                          </span>
                           <Move className="w-4 h-4 text-brand-600" />
                         </h4>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Drag and drop photo cards directly to reorder sequence, or use the move buttons.
+                          Drag and drop photo cards directly to reorder
+                          sequence, or use the move buttons.
                         </p>
                       </div>
                     </div>
 
                     {form.images.length === 0 ? (
                       <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50">
-                        No photos uploaded yet. Click above to upload villa photos.
+                        No photos uploaded yet. Click above to upload villa
+                        photos.
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -741,10 +873,11 @@ Early check-in and late check-out is subject to availability (at an additional f
                             onDragOver={handleDragOver}
                             onDrop={() => handleDropImage(idx)}
                             onDragEnd={() => setDraggedImageIndex(null)}
-                            className={`bg-slate-50 border rounded-2xl p-3 flex flex-col justify-between space-y-3 group shadow-2xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing relative select-none ${draggedImageIndex === idx
-                              ? 'opacity-40 border-brand-500 ring-2 ring-brand-400 scale-[0.98]'
-                              : 'border-slate-200 hover:border-brand-300'
-                              }`}
+                            className={`bg-slate-50 border rounded-2xl p-3 flex flex-col justify-between space-y-3 group shadow-2xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing relative select-none ${
+                              draggedImageIndex === idx
+                                ? "opacity-40 border-brand-500 ring-2 ring-brand-400 scale-[0.98]"
+                                : "border-slate-200 hover:border-brand-300"
+                            }`}
                           >
                             <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-200">
                               <img
@@ -803,10 +936,10 @@ Early check-in and late check-out is subject to availability (at an additional f
                     )}
                   </div>
                 </div>
-              )
+              ),
             },
             {
-              key: 'location',
+              key: "location",
               label: (
                 <span className="flex items-center gap-2 font-bold text-xs py-1">
                   <MapPin className="w-4 h-4 text-brand-600" />
@@ -822,7 +955,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       </label>
                       <select
                         value={form.cityId}
-                        onChange={(e) => setForm({ ...form, cityId: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, cityId: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 cursor-pointer"
                       >
                         <option value="">Select Destination City</option>
@@ -841,7 +976,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <input
                         type="text"
                         value={form.state}
-                        onChange={(e) => setForm({ ...form, state: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, state: e.target.value })
+                        }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                         placeholder="e.g. Goa / Maharashtra"
                       />
@@ -855,7 +992,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                     <input
                       type="text"
                       value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, address: e.target.value })
+                      }
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                       placeholder="e.g. House No. 42, Vagator Beach Road, North Goa"
                     />
@@ -868,16 +1007,18 @@ Early check-in and late check-out is subject to availability (at an additional f
                     <input
                       type="url"
                       value={form.googleMapsUrl}
-                      onChange={(e) => setForm({ ...form, googleMapsUrl: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, googleMapsUrl: e.target.value })
+                      }
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                       placeholder="https://maps.google.com/..."
                     />
                   </div>
                 </div>
-              )
+              ),
             },
             {
-              key: 'amenities',
+              key: "amenities",
               label: (
                 <span className="flex items-center gap-2 font-bold text-xs py-1">
                   <Sparkles className="w-4 h-4 text-brand-600" />
@@ -902,11 +1043,13 @@ Early check-in and late check-out is subject to availability (at an additional f
                             checked={(form.amenities || []).includes(item)}
                             onChange={(e) => {
                               const checked = e.target.checked;
-                              setForm(prev => ({
+                              setForm((prev) => ({
                                 ...prev,
                                 amenities: checked
                                   ? [...(prev.amenities || []), item]
-                                  : (prev.amenities || []).filter(a => a !== item)
+                                  : (prev.amenities || []).filter(
+                                      (a) => a !== item
+                                    ),
                               }));
                             }}
                             className="rounded text-brand-600 focus:ring-0 w-4 h-4 cursor-pointer"
@@ -919,7 +1062,9 @@ Early check-in and late check-out is subject to availability (at an additional f
 
                   {/* Meals Section */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h4 className="text-sm font-bold text-slate-900">Dining & Chef Menu Package</h4>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Dining & Chef Menu Package
+                    </h4>
 
                     <div>
                       <label className="block text-slate-600 text-xs font-semibold mb-1">
@@ -928,7 +1073,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <textarea
                         rows={3}
                         value={form.mealsDescription}
-                        onChange={(e) => setForm({ ...form, mealsDescription: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, mealsDescription: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900"
                         placeholder="Describe available meal plans, private chef services, breakfast inclusions..."
                       />
@@ -941,7 +1088,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <input
                         type="text"
                         value={form.cuisines}
-                        onChange={(e) => setForm({ ...form, cuisines: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, cuisines: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-medium"
                         placeholder="e.g. Traditional Regional Cuisines, Modern Italian & Pastas, Continental Grills"
                       />
@@ -954,7 +1103,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <textarea
                         rows={2}
                         value={form.dietaryNotes}
-                        onChange={(e) => setForm({ ...form, dietaryNotes: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, dietaryNotes: e.target.value })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium"
                         placeholder="e.g. Please enter details such as allergies, special diets (keto, vegan, diabetic) in concierge field during checkout..."
                       />
@@ -987,10 +1138,10 @@ Early check-in and late check-out is subject to availability (at an additional f
                     </div>
                   </div>
                 </div>
-              )
+              ),
             },
             {
-              key: 'rules',
+              key: "rules",
               label: (
                 <span className="flex items-center gap-2 font-bold text-xs py-1">
                   <Info className="w-4 h-4 text-brand-600" />
@@ -1002,7 +1153,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                   {/* Villa Layout Spaces */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">Villa Layout & Spaces</h4>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Villa Layout & Spaces
+                      </h4>
                       <button
                         type="button"
                         onClick={handleAddSpace}
@@ -1014,7 +1167,10 @@ Early check-in and late check-out is subject to availability (at an additional f
                     </div>
 
                     {(form.spaces || []).map((space, idx) => (
-                      <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+                      <div
+                        key={idx}
+                        className="p-4 bg-white border border-slate-200 rounded-xl space-y-3"
+                      >
                         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
                           {/* Image preview / thumbnail */}
                           <div className="w-full md:w-28 h-24 shrink-0 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden relative group flex items-center justify-center">
@@ -1027,7 +1183,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => handleSpaceChange(idx, 'image', '')}
+                                  onClick={() =>
+                                    handleSpaceChange(idx, "image", "")
+                                  }
                                   className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                   title="Remove image"
                                 >
@@ -1037,14 +1195,19 @@ Early check-in and late check-out is subject to availability (at an additional f
                             ) : (
                               <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-200/50 transition-colors p-2 text-center">
                                 <UploadCloud className="w-5 h-5 text-slate-400 mb-1" />
-                                <span className="text-[9px] font-semibold text-slate-500">Upload Photo</span>
+                                <span className="text-[9px] font-semibold text-slate-500">
+                                  Upload Photo
+                                </span>
                                 <input
                                   type="file"
                                   accept="image/*"
                                   className="hidden"
                                   onChange={(e) => {
                                     if (e.target.files?.[0]) {
-                                      handleSpaceImageUpload(idx, e.target.files[0]);
+                                      handleSpaceImageUpload(
+                                        idx,
+                                        e.target.files[0]
+                                      );
                                     }
                                   }}
                                 />
@@ -1058,14 +1221,22 @@ Early check-in and late check-out is subject to availability (at an additional f
                               <input
                                 type="text"
                                 value={space.title}
-                                onChange={(e) => handleSpaceChange(idx, 'title', e.target.value)}
+                                onChange={(e) =>
+                                  handleSpaceChange(
+                                    idx,
+                                    "title",
+                                    e.target.value
+                                  )
+                                }
                                 placeholder="e.g. Master Royal Suite"
                                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900"
                               />
                               <input
                                 type="text"
                                 value={space.desc}
-                                onChange={(e) => handleSpaceChange(idx, 'desc', e.target.value)}
+                                onChange={(e) =>
+                                  handleSpaceChange(idx, "desc", e.target.value)
+                                }
                                 placeholder="e.g. King bed, ensuite bath, ocean balcony view"
                                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 md:col-span-2"
                               />
@@ -1074,8 +1245,14 @@ Early check-in and late check-out is subject to availability (at an additional f
                             <div className="flex items-center gap-2">
                               <input
                                 type="text"
-                                value={space.image || ''}
-                                onChange={(e) => handleSpaceChange(idx, 'image', e.target.value)}
+                                value={space.image || ""}
+                                onChange={(e) =>
+                                  handleSpaceChange(
+                                    idx,
+                                    "image",
+                                    e.target.value
+                                  )
+                                }
                                 placeholder="Space image URL (e.g. /uploads/properties/space-1.jpg or https://...)"
                                 className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700"
                               />
@@ -1087,7 +1264,10 @@ Early check-in and late check-out is subject to availability (at an additional f
                                   className="hidden"
                                   onChange={(e) => {
                                     if (e.target.files?.[0]) {
-                                      handleSpaceImageUpload(idx, e.target.files[0]);
+                                      handleSpaceImageUpload(
+                                        idx,
+                                        e.target.files[0]
+                                      );
                                     }
                                   }}
                                 />
@@ -1110,11 +1290,15 @@ Early check-in and late check-out is subject to availability (at an additional f
 
                   {/* Home Truths */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h4 className="text-sm font-bold text-slate-900">Home Truths (Full Description)</h4>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Home Truths (Full Description)
+                    </h4>
                     <textarea
                       rows={5}
                       value={form.homeTruths}
-                      onChange={(e) => setForm({ ...form, homeTruths: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, homeTruths: e.target.value })
+                      }
                       className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                       placeholder="Enter full description of home truths, villa nuances, location notes..."
                     />
@@ -1122,11 +1306,15 @@ Early check-in and late check-out is subject to availability (at an additional f
 
                   {/* House Rules */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h4 className="text-sm font-bold text-slate-900">House Rules (Full Description)</h4>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      House Rules (Full Description)
+                    </h4>
                     <textarea
                       rows={5}
                       value={form.houseRules}
-                      onChange={(e) => setForm({ ...form, houseRules: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, houseRules: e.target.value })
+                      }
                       className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-900 focus:outline-none focus:border-brand-500"
                       placeholder="Enter full description of guest rules, quiet hours, smoking/pet policy, pool guidelines..."
                     />
@@ -1135,7 +1323,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                   {/* Nearby Places */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">Nearby Places & Distance</h4>
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Nearby Places & Distance
+                      </h4>
                       <button
                         type="button"
                         onClick={handleAddNearby}
@@ -1147,24 +1337,33 @@ Early check-in and late check-out is subject to availability (at an additional f
                     </div>
 
                     {(form.nearbyPlaces || []).map((place, idx) => (
-                      <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                      <div
+                        key={idx}
+                        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3 rounded-xl border border-slate-200"
+                      >
                         <input
                           type="text"
                           value={place.name}
-                          onChange={(e) => handleNearbyChange(idx, 'name', e.target.value)}
+                          onChange={(e) =>
+                            handleNearbyChange(idx, "name", e.target.value)
+                          }
                           placeholder="Place Name (e.g. Vagator Beach)"
                           className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900"
                         />
                         <input
                           type="text"
                           value={place.distance}
-                          onChange={(e) => handleNearbyChange(idx, 'distance', e.target.value)}
+                          onChange={(e) =>
+                            handleNearbyChange(idx, "distance", e.target.value)
+                          }
                           placeholder="Distance (e.g. 1.2 km)"
                           className="w-full sm:w-32 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
                         />
                         <select
-                          value={place.type || 'cafe'}
-                          onChange={(e) => handleNearbyChange(idx, 'type', e.target.value)}
+                          value={place.type || "cafe"}
+                          onChange={(e) =>
+                            handleNearbyChange(idx, "type", e.target.value)
+                          }
                           className="w-full sm:w-44 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer"
                         >
                           <option value="cafe">Cafe</option>
@@ -1190,7 +1389,9 @@ Early check-in and late check-out is subject to availability (at an additional f
 
                   {/* Cancellation Policy */}
                   <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h4 className="text-sm font-bold text-slate-900">Cancellation Policy</h4>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Cancellation Policy
+                    </h4>
                     <div>
                       <label className="block text-slate-600 text-xs font-semibold mb-1">
                         Cancellation Policy & Refund Terms
@@ -1198,15 +1399,20 @@ Early check-in and late check-out is subject to availability (at an additional f
                       <textarea
                         rows={6}
                         value={form.cancellationPolicy}
-                        onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            cancellationPolicy: e.target.value,
+                          })
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium leading-relaxed"
-                        placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want"
+                        placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee)"
                       />
                     </div>
                   </div>
                 </div>
-              )
-            }
+              ),
+            },
           ]}
         />
 
@@ -1223,8 +1429,16 @@ Early check-in and late check-out is subject to availability (at an additional f
             disabled={submitting}
             className="py-3 px-8 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-xs font-bold shadow-xs disabled:opacity-50 flex items-center gap-2 cursor-pointer transition-all"
           >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            <span>{isEditMode ? 'Save & Update Property Listing' : 'Publish Property Listing'}</span>
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            <span>
+              {isEditMode
+                ? "Save & Update Property Listing"
+                : "Publish Property Listing"}
+            </span>
           </button>
         </div>
       </form>

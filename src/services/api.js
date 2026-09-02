@@ -1,8 +1,20 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://roamigo-backend.in/api/v1';
-// const API_BASE_URL = 'http://localhost:5000/api/v1';
-// const API_BASE_URL = 'https://test.roamigo-backend.in/api/v1';
+const getApiBaseUrl = () => {
+  const hostname = window.location.hostname;
+
+  if (hostname === 'roamigo.in' || hostname === 'admin.roamigo.in') {
+    return 'https://roamigo-backend.in/api/v1';
+  }
+
+  if (hostname === 'localhost') {
+    return 'http://localhost:5000/api/v1'
+  }
+
+  return 'https://test.roamigo-backend.in/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
