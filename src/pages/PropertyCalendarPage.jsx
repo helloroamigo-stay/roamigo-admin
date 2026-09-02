@@ -101,7 +101,6 @@ const PropertyCalendarPage = () => {
       const avList = availRes.data?.availabilities || [];
       setAvailabilities(avList);
       console.log(avList);
-
     } catch (err) {
       console.error("Failed to load property calendar data:", err);
       message.error(err.message || "Could not load property calendar data.");
@@ -268,31 +267,35 @@ const PropertyCalendarPage = () => {
 
     const availability = availabilityMap.get(dateStr);
     const isBlocked = availability?.isBlocked;
-    const isBooking = availability?.source === "BOOKING" || !!availability?.bookingId;
+    const isBooking =
+      availability?.source === "BOOKING" || !!availability?.bookingId;
     const isICal = availability?.source === "ICAL_SYNC";
 
-    const dailyPrice = availability?.priceOverride || property?.pricePerNight || 0;
+    const dailyPrice =
+      availability?.priceOverride || property?.pricePerNight || 0;
     const priceText = formatPriceK(dailyPrice);
 
     return (
       <div
         onClick={() => handleDateSelect(current)}
-        className={`h-full w-full p-1.5 flex flex-col justify-between rounded-2xl transition-all border cursor-pointer select-none min-h-[90px] ${isBlocked
+        className={`h-full w-full p-1.5 flex flex-col justify-between rounded-2xl transition-all border cursor-pointer select-none min-h-[90px] ${
+          isBlocked
             ? "bg-slate-100/90 border-slate-200 text-slate-400"
             : isSelected
-              ? "bg-amber-500/10 border-amber-500 text-slate-900 shadow-sm"
-              : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900"
-          }`}
+            ? "bg-amber-500/10 border-amber-500 text-slate-900 shadow-sm"
+            : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900"
+        }`}
       >
         {/* Top Bar: Date Number Badge */}
         <div className="flex items-center justify-between">
           <span
-            className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${isToday
+            className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
+              isToday
                 ? "bg-rose-500 text-white shadow-xs"
                 : isBlocked
-                  ? "line-through text-slate-400 font-semibold"
-                  : "text-slate-900 font-bold"
-              }`}
+                ? "line-through text-slate-400 font-semibold"
+                : "text-slate-900 font-bold"
+            }`}
           >
             {current.date()}
           </span>
@@ -321,8 +324,9 @@ const PropertyCalendarPage = () => {
         {/* Bottom Bar: Daily Nightly Price */}
         <div className="mt-2 text-center">
           <span
-            className={`text-xs font-extrabold font-mono tracking-tight block ${isBlocked ? "text-slate-400 opacity-70" : "text-slate-900"
-              }`}
+            className={`text-xs font-extrabold font-mono tracking-tight block ${
+              isBlocked ? "text-slate-400 opacity-70" : "text-slate-900"
+            }`}
           >
             {priceText}
           </span>
@@ -362,7 +366,9 @@ const PropertyCalendarPage = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
-              <span>{property?.address || property?.cityId?.name || "India"}</span>
+              <span>
+                {property?.address || property?.cityId?.name || "India"}
+              </span>
               <span>•</span>
               <span>Full-Page Calendar & Date Management</span>
             </p>
@@ -389,8 +395,12 @@ const PropertyCalendarPage = () => {
             <Lock className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs text-slate-500 font-medium block">Total Blocked Nights</span>
-            <span className="text-lg font-bold text-slate-900 font-mono">{availabilities.length}</span>
+            <span className="text-xs text-slate-500 font-medium block">
+              Total Blocked Nights
+            </span>
+            <span className="text-lg font-bold text-slate-900 font-mono">
+              {availabilities.length}
+            </span>
           </div>
         </div>
 
@@ -399,8 +409,12 @@ const PropertyCalendarPage = () => {
             <Globe className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs text-slate-500 font-medium block">iCal Feeds Synced</span>
-            <span className="text-lg font-bold text-slate-900 font-mono">{icalFeeds.length} Feeds</span>
+            <span className="text-xs text-slate-500 font-medium block">
+              iCal Feeds Synced
+            </span>
+            <span className="text-lg font-bold text-slate-900 font-mono">
+              {icalFeeds.length} Feeds
+            </span>
           </div>
         </div>
 
@@ -409,7 +423,9 @@ const PropertyCalendarPage = () => {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs text-slate-500 font-medium block">Base Price / Night</span>
+            <span className="text-xs text-slate-500 font-medium block">
+              Base Price / Night
+            </span>
             <span className="text-lg font-bold text-slate-900 font-mono">
               ₹{property?.pricePerNight?.toLocaleString("en-IN") || 0}
             </span>
@@ -421,67 +437,12 @@ const PropertyCalendarPage = () => {
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs text-slate-500 font-medium block">Auto-Sync Status</span>
-            <span className="text-xs font-bold text-emerald-600 block">Every 30 mins (Active)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Action Toolbar (Range Release & Range Block) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Release Range Box */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Unlock className="w-4 h-4 text-emerald-600" />
-              <span>Release Date Range</span>
+            <span className="text-xs text-slate-500 font-medium block">
+              Auto-Sync Status
             </span>
-            <span className="text-[10px] text-slate-500 font-medium">Unlock Calendar</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <RangePicker
-              value={releaseRange}
-              onChange={setReleaseRange}
-              format="YYYY-MM-DD"
-              className="w-full rounded-2xl text-xs py-2"
-              placeholder={["Start Date", "End Date"]}
-            />
-            <button
-              type="button"
-              onClick={handleReleaseRange}
-              disabled={actionLoading || !releaseRange}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
-            >
-              <span>Release</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Manual Block Range Box */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Lock className="w-4 h-4 text-amber-600" />
-              <span>Block Custom Dates</span>
+            <span className="text-xs font-bold text-emerald-600 block">
+              Every 30 mins (Active)
             </span>
-            <span className="text-[10px] text-slate-500 font-medium">Maintenance / Private</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <RangePicker
-              value={blockRange}
-              onChange={setBlockRange}
-              format="YYYY-MM-DD"
-              className="w-full rounded-2xl text-xs py-2"
-              placeholder={["Start Date", "End Date"]}
-            />
-            <button
-              type="button"
-              onClick={handleBlockRange}
-              disabled={actionLoading || !blockRange}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
-            >
-              <span>Block</span>
-            </button>
           </div>
         </div>
       </div>
@@ -518,7 +479,9 @@ const PropertyCalendarPage = () => {
           {loading ? (
             <div className="py-24 text-center flex flex-col items-center justify-center space-y-3">
               <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
-              <p className="text-xs text-slate-500 font-medium">Reading property calendar...</p>
+              <p className="text-xs text-slate-500 font-medium">
+                Reading property calendar...
+              </p>
             </div>
           ) : (
             <div className="custom-full-calendar">
@@ -532,12 +495,77 @@ const PropertyCalendarPage = () => {
 
         {/* Right 1 Col: iCal Sync Settings & Feeds */}
         <div className="space-y-6">
+          {/* 3. Action Toolbar (Range Release & Range Block) */}
+          <div className="">
+            {/* Release Range Box */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Unlock className="w-4 h-4 text-emerald-600" />
+                  <span>Release Date Range</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Unlock Calendar
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <RangePicker
+                  value={releaseRange}
+                  onChange={setReleaseRange}
+                  format="YYYY-MM-DD"
+                  className="w-full rounded-2xl text-xs py-2"
+                  placeholder={["Start Date", "End Date"]}
+                />
+                <button
+                  type="button"
+                  onClick={handleReleaseRange}
+                  disabled={actionLoading || !releaseRange}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
+                >
+                  <span>Release</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Manual Block Range Box */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Lock className="w-4 h-4 text-amber-600" />
+                  <span>Block Custom Dates</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Maintenance / Private
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <RangePicker
+                  value={blockRange}
+                  onChange={setBlockRange}
+                  format="YYYY-MM-DD"
+                  className="w-full rounded-2xl text-xs py-2"
+                  placeholder={["Start Date", "End Date"]}
+                />
+                <button
+                  type="button"
+                  onClick={handleBlockRange}
+                  disabled={actionLoading || !blockRange}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
+                >
+                  <span>Block</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* iCal Control Box */}
           <div className="bg-slate-900 text-white rounded-3xl p-5 space-y-5 shadow-lg border border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Globe className="w-5 h-5 text-amber-400" />
-                <h3 className="text-sm font-bold text-white">iCal Calendar Sync</h3>
+                <h3 className="text-sm font-bold text-white">
+                  iCal Calendar Sync
+                </h3>
               </div>
               <button
                 type="button"
@@ -545,7 +573,11 @@ const PropertyCalendarPage = () => {
                 disabled={syncingFeeds}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncingFeeds ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${
+                    syncingFeeds ? "animate-spin" : ""
+                  }`}
+                />
                 <span>Sync Now</span>
               </button>
             </div>
@@ -559,7 +591,8 @@ const PropertyCalendarPage = () => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Paste into Airbnb or Goibibo ("Import Calendar") to block Roamigo bookings on their platforms.
+                Paste into Airbnb or Goibibo ("Import Calendar") to block
+                Roamigo bookings on their platforms.
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <input
@@ -571,12 +604,17 @@ const PropertyCalendarPage = () => {
                 <button
                   type="button"
                   onClick={handleCopyExportICal}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${copiedICal
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                    copiedICal
                       ? "bg-emerald-600 text-white"
                       : "bg-amber-500 hover:bg-amber-400 text-slate-950"
-                    }`}
+                  }`}
                 >
-                  {copiedICal ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedICal ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                   <span>{copiedICal ? "Copied" : "Copy"}</span>
                 </button>
               </div>
@@ -617,7 +655,11 @@ const PropertyCalendarPage = () => {
                     disabled={addingFeed || !newFeedUrl}
                     className="w-full py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
                   >
-                    {addingFeed ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    {addingFeed ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
+                    )}
                     <span>Add External Feed</span>
                   </button>
                 </div>
@@ -638,14 +680,17 @@ const PropertyCalendarPage = () => {
                     >
                       <div className="min-w-0 flex-1 pr-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-amber-400">{feed.name}</span>
+                          <span className="text-xs font-bold text-amber-400">
+                            {feed.name}
+                          </span>
                           <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${feed.syncStatus === "SUCCESS"
+                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              feed.syncStatus === "SUCCESS"
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                                 : feed.syncStatus === "FAILED"
-                                  ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                                  : "bg-slate-700 text-slate-400"
-                              }`}
+                                ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                                : "bg-slate-700 text-slate-400"
+                            }`}
                           >
                             {feed.syncStatus || "PENDING"}
                           </span>
@@ -655,7 +700,8 @@ const PropertyCalendarPage = () => {
                         </p>
                         {feed.lastSyncedAt && (
                           <p className="text-[9px] text-slate-500 mt-0.5">
-                            Last synced: {dayjs(feed.lastSyncedAt).format("DD MMM, HH:mm")}
+                            Last synced:{" "}
+                            {dayjs(feed.lastSyncedAt).format("DD MMM, HH:mm")}
                           </p>
                         )}
                       </div>
@@ -682,7 +728,8 @@ const PropertyCalendarPage = () => {
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-amber-600" />
             <span>
-              Date Actions: {selectedDate ? selectedDate.format("ddd, DD MMMM YYYY") : ""}
+              Date Actions:{" "}
+              {selectedDate ? selectedDate.format("ddd, DD MMMM YYYY") : ""}
             </span>
           </div>
         }
@@ -696,7 +743,9 @@ const PropertyCalendarPage = () => {
           {/* Status Details */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 text-sm">Status Overview</span>
+              <span className="font-bold text-slate-900 text-sm">
+                Status Overview
+              </span>
               {selectedAvailability?.isBlocked ? (
                 <span className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                   <Lock className="w-3 h-3" />
@@ -714,19 +763,27 @@ const PropertyCalendarPage = () => {
               <div className="flex justify-between">
                 <span className="text-slate-500">Daily Nightly Rate:</span>
                 <span className="font-bold text-slate-900 font-mono text-sm">
-                  {formatPriceK(selectedAvailability?.priceOverride || property?.pricePerNight || 0)}
+                  {formatPriceK(
+                    selectedAvailability?.priceOverride ||
+                      property?.pricePerNight ||
+                      0
+                  )}
                 </span>
               </div>
               {selectedAvailability?.source && (
                 <div className="flex justify-between">
                   <span className="text-slate-500">Block Source:</span>
-                  <span className="font-bold text-slate-800">{selectedAvailability.source}</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedAvailability.source}
+                  </span>
                 </div>
               )}
               {selectedAvailability?.notes && (
                 <div className="flex justify-between">
                   <span className="text-slate-500">Block Reason / Notes:</span>
-                  <span className="font-bold text-slate-800">{selectedAvailability.notes}</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedAvailability.notes}
+                  </span>
                 </div>
               )}
               {selectedAvailability?.booking?.bookingCode && (
