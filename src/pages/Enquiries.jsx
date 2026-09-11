@@ -24,6 +24,7 @@ import {
   UserX,
   RefreshCw,
   Tag as TagIcon,
+  Eye,
 } from "lucide-react";
 import { Modal, Select, message, Tag } from "antd";
 
@@ -417,8 +418,9 @@ const Enquiries = () => {
             <table className="w-full text-left text-sm text-slate-600 border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-4 px-6">Ref Code & Guest</th>
-                  <th className="py-4 px-6">Target Property</th>
+                  <th className="py-4 px-6">Guest</th>
+                  <th className="py-4 px-6">Date</th>
+                  <th className="py-4 px-6">Property</th>
                   <th className="py-4 px-6">Stay Dates</th>
                   <th className="py-4 px-6">Est. Price</th>
                   <th className="py-4 px-6">Lead Status</th>
@@ -445,7 +447,7 @@ const Enquiries = () => {
                       className="hover:bg-slate-50/80 transition-colors"
                     >
                       {/* Ref Code & Guest */}
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-3">
                         <div className="font-mono font-bold text-brand-600 text-xs">
                           #{enq.bookingCode || enq._id?.slice(-6).toUpperCase()}
                         </div>
@@ -480,7 +482,16 @@ const Enquiries = () => {
                       </td>
 
                       {/* Target Property */}
-                      <td className="py-4 px-6 max-w-[240px]">
+                      <td className="py-4 px-2 max-w-40">
+                        <div className="flex items-start gap-2.5">
+                          <div className="truncate">
+                            <div className="text-slate-900 font-semibold truncate text-sm">
+                              {formatDate(enq.createdAt)}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-3 max-w-55">
                         <div className="flex items-start gap-2.5">
                           <Home className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
                           <div className="truncate">
@@ -549,8 +560,8 @@ const Enquiries = () => {
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-xs transition-all hover:scale-105"
                           title="Send Confirmation Email & Lock Dates"
                         >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Send Confirmation</span>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View</span>
                         </button>
                       </td>
                     </tr>

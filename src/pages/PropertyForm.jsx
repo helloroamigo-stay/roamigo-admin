@@ -88,8 +88,6 @@ const PropertyForm = () => {
     title: "",
     description: "",
     pricePerNight: "",
-    extraAdultFee: 0,
-    extraChildFee: 0,
     baseGuests: 2,
     guestsMax: 2,
     kidsCount: 0,
@@ -116,9 +114,10 @@ const PropertyForm = () => {
     houseRules: "",
     nearbyPlaces: [],
     cancellationPolicy: `Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.
-    Checkin 2pm 
-    Checkout 11am
-    Early check-in and late check-out is subject to availability (at an additional fee)`,
+
+Checkin 2pm 
+Checkout 11am
+Early check-in and late check-out is subject to availability (at an additional fee)`,
   });
 
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -182,9 +181,6 @@ const PropertyForm = () => {
         title: p.title || "",
         description: p.description || "",
         pricePerNight: p.pricePerNight || "",
-        extraAdultFee: p.extraAdultFee || 0,
-        extraChildFee: p.extraChildFee || 0,
-        rooms: p.rooms || 0,
         baseGuests: p.baseGuests !== undefined ? p.baseGuests : 2,
         guestsMax: p.guestsMax || 2,
         kidsCount: p.kidsCount !== undefined ? p.kidsCount : 0,
@@ -745,36 +741,6 @@ const PropertyForm = () => {
                         value={form.guestsMax}
                         onChange={(e) =>
                           setForm({ ...form, guestsMax: e.target.value })
-                        }
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">
-                        Extra Adult Fee (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        value={form.extraAdultFee}
-                        onChange={(e) =>
-                          setForm({ ...form, extraAdultFee: e.target.value })
-                        }
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 text-xs font-semibold mb-1">
-                        Extra Kid Fee (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        value={form.extraChildFee}
-                        onChange={(e) =>
-                          setForm({ ...form, extraChildFee: e.target.value })
                         }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
@@ -1457,7 +1423,7 @@ const PropertyForm = () => {
                           })
                         }
                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 font-medium leading-relaxed"
-                        placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee) or can change if they want"
+                        placeholder="Full refund for cancellations made 14 or more days before check-in. 50% refund for cancellations made 7–13 days before check-in. Cancellations made less than 7 days before check-in are non-refundable.&#10;&#10;Checkin 2pm&#10;Checkout 11am&#10;Early check-in and late check-out is subject to availability (at an additional fee)"
                       />
                     </div>
                   </div>

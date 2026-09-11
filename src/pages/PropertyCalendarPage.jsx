@@ -380,14 +380,12 @@ const PropertyCalendarPage = () => {
 
     return (
       <div
-        onClick={() => handleDateSelect(current, { source: "date" })}
+        onClick={() => handleDateSelect(current)}
         className={`h-full w-full p-1.5 flex flex-col justify-between rounded-2xl transition-all border cursor-pointer select-none min-h-[90px] ${
           isBlocked
             ? "bg-slate-100/90 border-slate-200 text-slate-400"
             : isSelected
             ? "bg-amber-500/10 border-amber-500 text-slate-900 shadow-sm"
-            : hasOverride
-            ? "bg-emerald-50/50 border-emerald-300 hover:border-emerald-500 text-slate-900 shadow-2xs"
             : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900"
         }`}
       >
@@ -561,151 +559,6 @@ const PropertyCalendarPage = () => {
         </div>
       </div>
 
-      {/* 3. Action Toolbar (Release Range, Block Range & Dates & Rates Dynamic Pricing Drawer) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Dynamic Dates & Rates Drawer / Bulk Custom Pricing */}
-        <div className="lg:col-span-3 bg-white border border-amber-200 bg-amber-50/30 rounded-3xl p-5 space-y-4 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/60 pb-3">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                {/* <DollarSign className="w-4 h-4 text-amber-600" /> */}
-                <span>Dates & Custom Rates Drawer (Dynamic Pricing)</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Apply weekend surcharges or custom per-night rates filtered by
-                day of the week.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleUpdateCustomRates}
-              disabled={actionLoading || !customRateRange}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-sm shrink-0"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Apply Custom Rates</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 text-xs">
-            {/* Range Picker */}
-            <div className="space-y-1 sm:col-span-2">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Date Range
-              </label>
-              <RangePicker
-                value={customRateRange}
-                onChange={setCustomRateRange}
-                format="YYYY-MM-DD"
-                className="w-full rounded-2xl text-xs py-2"
-                placeholder={["Start Date", "End Date"]}
-              />
-            </div>
-
-            {/* Custom Nightly Rate Input */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Base Night Rate (INR)
-              </label>
-              <Input
-                type="number"
-                placeholder={`Base: ₹${property?.pricePerNight || 0}`}
-                value={customRateInput}
-                onChange={(e) => setCustomRateInput(e.target.value)}
-                className="rounded-2xl text-xs py-2 font-mono font-bold"
-              />
-            </div>
-
-            {/* Extra Adult Fee Override */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Extra Adult Fee (INR)
-              </label>
-              <Input
-                type="number"
-                placeholder={`Base: ₹${property?.extraAdultFee || 0}`}
-                value={customExtraAdultFeeInput}
-                onChange={(e) => setCustomExtraAdultFeeInput(e.target.value)}
-                className="rounded-2xl text-xs py-2 font-mono font-bold"
-              />
-            </div>
-
-            {/* Extra Child Fee Override */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Extra Kid Fee (INR)
-              </label>
-              <Input
-                type="number"
-                placeholder={`Base: ₹${property?.extraChildFee || 0}`}
-                value={customExtraChildFeeInput}
-                onChange={(e) => setCustomExtraChildFeeInput(e.target.value)}
-                className="rounded-2xl text-xs py-2 font-mono font-bold"
-              />
-            </div>
-
-            {/* Status Radio */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Status
-              </label>
-              <Select
-                value={customRateStatus}
-                onChange={setCustomRateStatus}
-                className="w-full"
-                options={[
-                  { value: "open", label: "Open for Bookings" },
-                  { value: "closed", label: "Closed / Blocked" },
-                ]}
-              />
-            </div>
-
-            {/* Reason */}
-            {/* <div className="space-y-1 sm:col-span-2">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
-                Note / Reason
-              </label>  
-              <Input
-                type="text"
-                placeholder="e.g. Weekend Rate"
-                value={customRateReason}
-                onChange={(e) => setCustomRateReason(e.target.value)}
-                className="rounded-2xl text-xs py-2"
-              />
-            </div> */}
-          </div>
-
-          {/* Day of Week Checkboxes */}
-          <div className="pt-1 flex flex-wrap items-center gap-3 border-t border-amber-200/50">
-            <span className="text-xs font-bold text-slate-700">
-              Apply to Days:
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                (day, idx) => (
-                  <label
-                    key={day}
-                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-xl border cursor-pointer select-none transition-all ${
-                      daysOfWeek.includes(idx)
-                        ? "bg-amber-500 text-slate-950 border-amber-600 font-bold shadow-2xs"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-amber-300"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={daysOfWeek.includes(idx)}
-                      onChange={() => handleToggleDayOfWeek(idx)}
-                      className="hidden"
-                    />
-                    <span>{day}</span>
-                  </label>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* 4. Main Full-Page Calendar + iCal Sync Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Full Ant Design Calendar */}
@@ -836,63 +689,66 @@ const PropertyCalendarPage = () => {
 
         {/* Right 1 Col: iCal Sync Settings & Feeds */}
         <div className="space-y-6">
-          {/* Release Range Box */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <Unlock className="w-4 h-4 text-emerald-600" />
-                <span>Release Date Range</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium">
-                Unlock Calendar
-              </span>
+          {/* 3. Action Toolbar (Range Release & Range Block) */}
+          <div className="">
+            {/* Release Range Box */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Unlock className="w-4 h-4 text-emerald-600" />
+                  <span>Release Date Range</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Unlock Calendar
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <RangePicker
+                  value={releaseRange}
+                  onChange={setReleaseRange}
+                  format="YYYY-MM-DD"
+                  className="w-full rounded-2xl text-xs py-2"
+                  placeholder={["Start Date", "End Date"]}
+                />
+                <button
+                  type="button"
+                  onClick={handleReleaseRange}
+                  disabled={actionLoading || !releaseRange}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
+                >
+                  <span>Release</span>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <RangePicker
-                value={releaseRange}
-                onChange={setReleaseRange}
-                format="YYYY-MM-DD"
-                className="w-full rounded-2xl text-xs py-2"
-                placeholder={["Start Date", "End Date"]}
-              />
-              <button
-                type="button"
-                onClick={handleReleaseRange}
-                disabled={actionLoading || !releaseRange}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
-              >
-                <span>Release</span>
-              </button>
-            </div>
-          </div>
 
-          {/* Manual Block Range Box */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-amber-600" />
-                <span>Block Custom Dates</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium">
-                Maintenance / Private
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <RangePicker
-                value={blockRange}
-                onChange={setBlockRange}
-                format="YYYY-MM-DD"
-                className="w-full rounded-2xl text-xs py-2"
-                placeholder={["Start Date", "End Date"]}
-              />
-              <button
-                type="button"
-                onClick={handleBlockRange}
-                disabled={actionLoading || !blockRange}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
-              >
-                <span>Block</span>
-              </button>
+            {/* Manual Block Range Box */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Lock className="w-4 h-4 text-amber-600" />
+                  <span>Block Custom Dates</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Maintenance / Private
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <RangePicker
+                  value={blockRange}
+                  onChange={setBlockRange}
+                  format="YYYY-MM-DD"
+                  className="w-full rounded-2xl text-xs py-2"
+                  placeholder={["Start Date", "End Date"]}
+                />
+                <button
+                  type="button"
+                  onClick={handleBlockRange}
+                  disabled={actionLoading || !blockRange}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
+                >
+                  <span>Block</span>
+                </button>
+              </div>
             </div>
           </div>
 

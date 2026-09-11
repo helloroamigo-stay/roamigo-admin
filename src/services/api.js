@@ -16,7 +16,6 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
