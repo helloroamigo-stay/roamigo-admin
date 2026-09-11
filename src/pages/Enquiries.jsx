@@ -159,6 +159,17 @@ const Enquiries = () => {
     });
   };
 
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const getLeadStatusBadge = (leadStatus) => {
     const status = leadStatus || "New Enquiry";
     switch (status) {
@@ -483,10 +494,15 @@ const Enquiries = () => {
 
                       {/* Target Property */}
                       <td className="py-4 px-2 max-w-40">
-                        <div className="flex items-start gap-2.5">
+                        <div className="flex items-start gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                           <div className="truncate">
                             <div className="text-slate-900 font-semibold truncate text-sm">
                               {formatDate(enq.createdAt)}
+                            </div>
+                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              {formatTime(enq.createdAt)}
                             </div>
                           </div>
                         </div>

@@ -260,6 +260,9 @@ const Properties = () => {
         guestsMax: parseInt(form.guestsMax, 10),
         bedrooms: parseInt(form.bedrooms, 10),
         bathrooms: parseInt(form.bathrooms, 10),
+        rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(form.propertyType?.toUpperCase())
+          ? Number(form.rooms || 1)
+          : undefined,
         propertyType: form.propertyType,
         address: form.address,
         cityId: form.cityId || undefined,

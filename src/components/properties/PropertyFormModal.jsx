@@ -215,13 +215,9 @@ export const PropertyFormModal = ({
                 onChange={(e) => setForm({ ...form, propertyType: e.target.value })}
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer"
               >
+                <option value="ROOMS">Rooms</option>
                 <option value="VILLA">Villa</option>
-                <option value="APARTMENT">Apartment</option>
-                <option value="COTTAGE">Cottage</option>
-                <option value="MANSION">Mansion</option>
-                <option value="CABIN">Cabin</option>
-                <option value="PENTHOUSE">Penthouse</option>
-                <option value="ESTATE">Estate</option>
+                <option value="RESORT">Resort</option>
               </select>
             </div>
           </div>
@@ -252,7 +248,20 @@ export const PropertyFormModal = ({
           </div>
 
           {/* Pricing & Capacity Specs */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+            {["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(form.propertyType?.toUpperCase()) && (
+              <div>
+                <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Inventory *</label>
+                <input
+                  type="number"
+                  required
+                  value={form.rooms || 1}
+                  onChange={(e) => setForm({ ...form, rooms: e.target.value })}
+                  className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                  min="1"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Price / Night (₹) *</label>
               <input

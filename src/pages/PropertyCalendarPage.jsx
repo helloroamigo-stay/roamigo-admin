@@ -559,6 +559,112 @@ const PropertyCalendarPage = () => {
         </div>
       </div>
 
+      {/* 3. Dates & Custom Rates Drawer (Dynamic Host Pricing) */}
+      <div className="bg-white border border-blue-100 bg-[#fbfdff] rounded-3xl p-5 space-y-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100/60 pb-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span>Dates & Custom Rates Drawer (Dynamic Host Pricing)</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Set weekend surcharges or custom rates filtered by day of the week (e.g. Fri & Sat).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleUpdateCustomRates}
+            disabled={actionLoading || !customRateRange}
+            className="px-5 py-2.5 bg-[#1849C7] hover:bg-blue-800 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-sm shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Apply Custom Rates</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+          {/* Range Picker */}
+          <div className="space-y-1 sm:col-span-2">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              DATE RANGE
+            </label>
+            <RangePicker
+              value={customRateRange}
+              onChange={setCustomRateRange}
+              format="YYYY-MM-DD"
+              className="w-full rounded-2xl text-xs py-2"
+              placeholder={["Start Date", "End Date"]}
+            />
+          </div>
+
+          {/* Custom Rate Input */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              BASE NIGHT RATE (INR)
+            </label>
+            <Input
+              type="number"
+              placeholder={`Base: ₹${property?.pricePerNight || 0}`}
+              value={customRateInput}
+              onChange={(e) => setCustomRateInput(e.target.value)}
+              className="rounded-2xl text-xs py-2 font-mono font-bold"
+            />
+          </div>
+
+          {/* Extra Adult Fee Override */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              EXTRA ADULT FEE (INR)
+            </label>
+            <Input
+              type="number"
+              placeholder={`Base: ₹${property?.extraAdultFee || 0}`}
+              value={customExtraAdultFeeInput}
+              onChange={(e) => setCustomExtraAdultFeeInput(e.target.value)}
+              className="rounded-2xl text-xs py-2 font-mono font-bold"
+            />
+          </div>
+
+          {/* Extra Child Fee Override */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              EXTRA KID FEE (INR)
+            </label>
+            <Input
+              type="number"
+              placeholder={`Base: ₹${property?.extraChildFee || 0}`}
+              value={customExtraChildFeeInput}
+              onChange={(e) => setCustomExtraChildFeeInput(e.target.value)}
+              className="rounded-2xl text-xs py-2 font-mono font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Day of Week Checkboxes */}
+        <div className="pt-2 flex flex-wrap items-center gap-3 border-t border-blue-50">
+          <span className="text-xs font-bold text-slate-700">
+            Apply to Days:
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+              (day, idx) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => handleToggleDayOfWeek(idx)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-4 py-1 rounded-full border cursor-pointer select-none transition-all ${
+                    daysOfWeek.includes(idx)
+                      ? "bg-[#1877f2] text-white border-[#1877f2] font-bold shadow-xs"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                  }`}
+                >
+                  <span>{day}</span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 4. Main Full-Page Calendar + iCal Sync Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Full Ant Design Calendar */}

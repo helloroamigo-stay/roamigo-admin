@@ -108,6 +108,17 @@ const PartnerEnquiries = () => {
     });
   };
 
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "APPROVED":
@@ -416,11 +427,17 @@ const PartnerEnquiries = () => {
                         </span>
                       </td>
 
-                      {/* Submitted Date */}
+                      {/* Submitted Date & Time */}
                       <td className="py-4 px-6 text-xs text-slate-600">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{formatDate(enq.createdAt)}</span>
+                        <div className="flex items-start gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-slate-900 block">{formatDate(enq.createdAt)}</span>
+                            <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              {formatTime(enq.createdAt)}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
@@ -500,7 +517,7 @@ const PartnerEnquiries = () => {
                   {selectedEnquiry?.firstName} {selectedEnquiry?.lastName}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  Submitted on {formatDate(selectedEnquiry?.createdAt)} •{" "}
+                  Submitted on {formatDate(selectedEnquiry?.createdAt)} at {formatTime(selectedEnquiry?.createdAt)} •{" "}
                   {selectedEnquiry?.source}
                 </p>
               </div>
