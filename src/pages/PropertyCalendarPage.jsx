@@ -78,6 +78,103 @@ const PropertyCalendarPage = () => {
   const [blockReason, setBlockReason] = useState("Admin manual block");
   const [customPriceOverride, setCustomPriceOverride] = useState("");
 
+  // Dynamic Custom Rates State
+  const [customRateRange, setCustomRateRange] = useState(null);
+  const [daysOfWeek, setDaysOfWeek] = useState([0, 1, 2, 3, 4, 5, 6]);
+  const [customRateInput, setCustomRateInput] = useState("");
+  const [customExtraAdultFeeInput, setCustomExtraAdultFeeInput] = useState("");
+  const [customExtraChildFeeInput, setCustomExtraChildFeeInput] = useState("");
+  const [customRateStatus, setCustomRateStatus] = useState("open"); // "open" | "closed"
+  const [customRateReason, setCustomRateReason] =
+    useState("Custom rate update");
+
+  // Single date drawer rate input
+  const [singleDateCustomPrice, setSingleDateCustomPrice] = useState("");
+  const [singleDateExtraAdultPrice, setSingleDateExtraAdultPrice] =
+    useState("");
+  const [singleDateExtraChildPrice, setSingleDateExtraChildPrice] =
+    useState("");
+
+  const handleToggleDayOfWeek = (dayIdx) => {
+    setDaysOfWeek((prev) =>
+      prev.includes(dayIdx)
+        ? prev.filter((d) => d !== dayIdx)
+        : [...prev, dayIdx]
+    );
+  };
+
+  const handleUpdateCustomRates = async () => {
+    if (!customRateRange || customRateRange.length !== 2) {
+      message.warning("Please select a date range for custom rates.");
+      return;
+    }
+    const [start, end] = customRateRange;
+    try {
+      setActionLoading(true);
+      const payload = {
+        startDate: start.format("YYYY-MM-DD"),
+        endDate: end.format("YYYY-MM-DD"),
+        daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [0, 1, 2, 3, 4, 5, 6],
+        priceOverride: customRateInput ? Number(customRateInput) : undefined,
+        extraAdultFeeOverride: customExtraAdultFeeInput
+          ? Number(customExtraAdultFeeInput)
+          : undefined,
+        extraChildFeeOverride: customExtraChildFeeInput
+          ? Number(customExtraChildFeeInput)
+          : undefined,
+        isBlocked: customRateStatus === "closed",
+        reason: customRateReason || "Custom rate update",
+      };
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(res.message || "Custom rates updated successfully!");
+      setCustomRateRange(null);
+      setCustomRateInput("");
+      setCustomExtraAdultFeeInput("");
+      setCustomExtraChildFeeInput("");
+      fetchData();
+    } catch (err) {
+      console.error("Error updating custom rates:", err);
+      message.error(err.message || "Failed to update custom rates.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSaveSingleDateCustomRate = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    try {
+      setActionLoading(true);
+      const payload = {
+        startDate: dateStr,
+        endDate: dateStr,
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        priceOverride: singleDateCustomPrice
+          ? Number(singleDateCustomPrice)
+          : undefined,
+        extraAdultFeeOverride: singleDateExtraAdultPrice
+          ? Number(singleDateExtraAdultPrice)
+          : undefined,
+        extraChildFeeOverride: singleDateExtraChildPrice
+          ? Number(singleDateExtraChildPrice)
+          : undefined,
+        reason: "Single date rate update",
+      };
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(res.message || "Single date rate updated!");
+      setSingleDateCustomPrice("");
+      setSingleDateExtraAdultPrice("");
+      setSingleDateExtraChildPrice("");
+      setIsDrawerOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("Error updating single date rate:", err);
+      message.error(err.message || "Failed to update date rate.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Map for fast lookup by YYYY-MM-DD
   const availabilityMap = new Map();
   availabilities.forEach((item) => {
@@ -252,9 +349,11 @@ const PropertyCalendarPage = () => {
   };
 
   // Handle Date Cell Click
-  const handleDateSelect = (date) => {
+  const handleDateSelect = (date, selectInfo) => {
     setSelectedDate(date);
-    setIsDrawerOpen(true);
+    if (selectInfo?.source === "date") {
+      setIsDrawerOpen(true);
+    }
   };
 
   // Render Full Calendar Cell (matching reference screenshot style)
@@ -270,6 +369,10 @@ const PropertyCalendarPage = () => {
     const isBooking =
       availability?.source === "BOOKING" || !!availability?.bookingId;
     const isICal = availability?.source === "ICAL_SYNC";
+    const hasOverride =
+      availability &&
+      typeof availability.priceOverride === "number" &&
+      availability.priceOverride > 0;
 
     const dailyPrice =
       availability?.priceOverride || property?.pricePerNight || 0;
@@ -313,6 +416,15 @@ const PropertyCalendarPage = () => {
               <span>iCal</span>
             </span>
           )}
+          {hasOverride && !isBlocked && !isBooking && !isICal && (
+            <span
+              className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+              title="Custom Rate Override"
+            >
+              <DollarSign className="w-2.5 h-2.5" />
+              <span>Custom</span>
+            </span>
+          )}
           {isBlocked && !isBooking && !isICal && (
             <span className="bg-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
               <Lock className="w-2.5 h-2.5" />
@@ -344,7 +456,7 @@ const PropertyCalendarPage = () => {
   const selectedAvailability = availabilityMap.get(selectedDateStr);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-380 mx-auto space-y-6 font-sans">
       {/* 1. Header Navigation & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 p-5 rounded-3xl shadow-xs">
         <div className="flex items-center gap-3">
@@ -447,6 +559,112 @@ const PropertyCalendarPage = () => {
         </div>
       </div>
 
+      {/* 3. Dates & Custom Rates Drawer (Dynamic Host Pricing) */}
+      <div className="bg-white border border-blue-100 bg-[#fbfdff] rounded-3xl p-5 space-y-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100/60 pb-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span>Dates & Custom Rates Drawer (Dynamic Host Pricing)</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Set weekend surcharges or custom rates filtered by day of the week (e.g. Fri & Sat).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleUpdateCustomRates}
+            disabled={actionLoading || !customRateRange}
+            className="px-5 py-2.5 bg-[#1849C7] hover:bg-blue-800 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-sm shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Apply Custom Rates</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+          {/* Range Picker */}
+          <div className="space-y-1 sm:col-span-2">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              DATE RANGE
+            </label>
+            <RangePicker
+              value={customRateRange}
+              onChange={setCustomRateRange}
+              format="YYYY-MM-DD"
+              className="w-full rounded-2xl text-xs py-2"
+              placeholder={["Start Date", "End Date"]}
+            />
+          </div>
+
+          {/* Custom Rate Input */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              BASE NIGHT RATE (INR)
+            </label>
+            <Input
+              type="number"
+              placeholder={`Base: ₹${property?.pricePerNight || 0}`}
+              value={customRateInput}
+              onChange={(e) => setCustomRateInput(e.target.value)}
+              className="rounded-2xl text-xs py-2 font-mono font-bold"
+            />
+          </div>
+
+          {/* Extra Adult Fee Override */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              EXTRA ADULT FEE (INR)
+            </label>
+            <Input
+              type="number"
+              placeholder={`Base: ₹${property?.extraAdultFee || 0}`}
+              value={customExtraAdultFeeInput}
+              onChange={(e) => setCustomExtraAdultFeeInput(e.target.value)}
+              className="rounded-2xl text-xs py-2 font-mono font-bold"
+            />
+          </div>
+
+          {/* Extra Child Fee Override */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-slate-500">
+              EXTRA KID FEE (INR)
+            </label>
+            <Input
+              type="number"
+              placeholder={`Base: ₹${property?.extraChildFee || 0}`}
+              value={customExtraChildFeeInput}
+              onChange={(e) => setCustomExtraChildFeeInput(e.target.value)}
+              className="rounded-2xl text-xs py-2 font-mono font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Day of Week Checkboxes */}
+        <div className="pt-2 flex flex-wrap items-center gap-3 border-t border-blue-50">
+          <span className="text-xs font-bold text-slate-700">
+            Apply to Days:
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+              (day, idx) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => handleToggleDayOfWeek(idx)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-4 py-1 rounded-full border cursor-pointer select-none transition-all ${
+                    daysOfWeek.includes(idx)
+                      ? "bg-[#1877f2] text-white border-[#1877f2] font-bold shadow-xs"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                  }`}
+                >
+                  <span>{day}</span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 4. Main Full-Page Calendar + iCal Sync Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Full Ant Design Calendar */}
@@ -486,6 +704,88 @@ const PropertyCalendarPage = () => {
           ) : (
             <div className="custom-full-calendar">
               <AntCalendar
+                headerRender={({ value, type, onChange, onTypeChange }) => {
+                  const current = value.clone();
+                  const localeData = value.localeData();
+                  const months = [];
+                  for (let i = 0; i < 12; i++) {
+                    months.push(localeData.monthsShort(current.month(i)));
+                  }
+
+                  const monthOptions = [];
+                  for (let i = 0; i < 12; i++) {
+                    monthOptions.push(
+                      <Select.Option key={i} value={i}>
+                        {months[i]}
+                      </Select.Option>
+                    );
+                  }
+
+                  const year = value.year();
+                  const month = value.month();
+                  const options = [];
+                  for (let i = year - 5; i < year + 5; i += 1) {
+                    options.push(
+                      <Select.Option key={i} value={i}>
+                        {i}
+                      </Select.Option>
+                    );
+                  }
+
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 border-b border-slate-100 mb-4 bg-slate-50/80 rounded-2xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newValue = value.clone().subtract(1, "month");
+                          onChange(newValue);
+                        }}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-200 rounded-2xl text-xs cursor-pointer transition-all shadow-2xs"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-amber-600" />
+                        <span>Previous Month</span>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <Select
+                          size="small"
+                          dropdownMatchSelectWidth={false}
+                          className="font-bold"
+                          value={year}
+                          onChange={(newYear) => {
+                            const now = value.clone().year(newYear);
+                            onChange(now);
+                          }}
+                        >
+                          {options}
+                        </Select>
+                        <Select
+                          size="small"
+                          dropdownMatchSelectWidth={false}
+                          value={month}
+                          onChange={(newMonth) => {
+                            const now = value.clone().month(newMonth);
+                            onChange(now);
+                          }}
+                        >
+                          {monthOptions}
+                        </Select>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newValue = value.clone().add(1, "month");
+                          onChange(newValue);
+                        }}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-200 rounded-2xl text-xs cursor-pointer transition-all shadow-2xs"
+                      >
+                        <span>Next Month</span>
+                        <ChevronRight className="w-4 h-4 text-amber-600" />
+                      </button>
+                    </div>
+                  );
+                }}
                 fullCellRender={fullCellRender}
                 onSelect={handleDateSelect}
               />
@@ -800,6 +1100,31 @@ const PropertyCalendarPage = () => {
           {/* Quick Actions */}
           <div className="space-y-4">
             <h4 className="font-bold text-slate-900 text-sm">Quick Actions</h4>
+
+            {/* Set Custom Price for Selected Date */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+              <span className="font-bold text-slate-900 block text-xs">
+                Set Custom Rate for{" "}
+                {selectedDate ? selectedDate.format("DD MMM") : ""}
+              </span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder={`Base: ₹${property?.pricePerNight || 0}`}
+                  value={singleDateCustomPrice}
+                  onChange={(e) => setSingleDateCustomPrice(e.target.value)}
+                  className="rounded-xl text-xs py-2 font-mono font-bold"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveSingleDateCustomRate}
+                  disabled={actionLoading || !singleDateCustomPrice}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0"
+                >
+                  Save Rate
+                </button>
+              </div>
+            </div>
 
             {selectedAvailability?.isBlocked ? (
               <button

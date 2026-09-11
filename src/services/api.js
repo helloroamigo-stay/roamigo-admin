@@ -89,6 +89,7 @@ export const adminAPI = {
   getPropertyAvailability: (propertyId) => apiClient.get(`/admin/properties/${propertyId}/availability`),
   releasePropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/release-dates`, payload),
   blockPropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/block-dates`, payload),
+  updateCustomRates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/custom-rates`, payload),
   addICalFeed: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/ical-feeds`, payload),
   deleteICalFeed: (propertyId, feedId) => apiClient.delete(`/admin/properties/${propertyId}/ical-feeds/${feedId}`),
   syncICalFeeds: (propertyId) => apiClient.post(`/admin/properties/${propertyId}/sync-ical`),

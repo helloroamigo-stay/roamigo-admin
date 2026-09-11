@@ -109,10 +109,16 @@ const Enquiries = () => {
 
   const handleOpenConfirmModal = (enq) => {
     setSelectedEnquiryForConfirm(enq);
+    const roomsText =
+      enq.rooms && enq.rooms.length > 0
+        ? ` (Rooms: ${enq.rooms
+            .map((r) => String(r).replace(/^room\s*/i, ""))
+            .join(", ")})`
+        : "";
     setCustomMessage(
       `We are pleased to share the details and confirm your booking enquiry for ${
         enq.propertyId?.title || "your stay"
-      }! Your requested dates are now reserved. Please complete payment within 24 hours to finalize your reservation.`
+      }${roomsText}! Your requested dates are now reserved. Please complete payment within 24 hours to finalize your reservation.`
     );
   };
 
@@ -150,6 +156,17 @@ const Enquiries = () => {
       day: "numeric",
       month: "short",
       year: "numeric",
+    });
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
     });
   };
 
@@ -477,10 +494,15 @@ const Enquiries = () => {
 
                       {/* Target Property */}
                       <td className="py-4 px-2 max-w-40">
-                        <div className="flex items-start gap-2.5">
+                        <div className="flex items-start gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                           <div className="truncate">
                             <div className="text-slate-900 font-semibold truncate text-sm">
                               {formatDate(enq.createdAt)}
+                            </div>
+                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              {formatTime(enq.createdAt)}
                             </div>
                           </div>
                         </div>
@@ -497,6 +519,16 @@ const Enquiries = () => {
                                 enq.propertyId?.city ||
                                 "India"}
                             </div>
+                            {enq.rooms && enq.rooms.length > 0 && (
+                              <div className="text-[10px] text-brand-700 bg-brand-50 border border-brand-100 rounded px-1.5 py-0.5 w-fit mt-1 font-semibold">
+                                Rooms:{" "}
+                                {enq.rooms
+                                  .map((r) =>
+                                    String(r).replace(/^room\s*/i, "")
+                                  )
+                                  .join(", ")}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

@@ -23,6 +23,8 @@ jobs:
 
       - name: Build admin
         run: npm run build
+        # env:
+        #   VITE_API_URL: https://api.example.com
 
       - name: Upload admin
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4

@@ -438,6 +438,9 @@ Early check-in and late check-out is subject to availability (at an additional f
         guestsMax: Number(form.guestsMax),
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
+        rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(form.propertyType?.toUpperCase())
+          ? Number(form.rooms || 1)
+          : undefined,
         images: form.images,
         cuisines:
           typeof form.cuisines === "string"
@@ -653,13 +656,9 @@ Early check-in and late check-out is subject to availability (at an additional f
                         }
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-brand-500 cursor-pointer"
                       >
+                        <option value="ROOMS">Rooms</option>
                         <option value="VILLA">Villa</option>
-                        <option value="APARTMENT">Apartment</option>
-                        <option value="COTTAGE">Cottage</option>
-                        <option value="MANSION">Mansion</option>
-                        <option value="CABIN">Cabin</option>
-                        <option value="PENTHOUSE">Penthouse</option>
-                        <option value="ESTATE">Estate</option>
+                        <option value="RESORT">Resort</option>
                       </select>
                     </div>
                   </div>
@@ -698,8 +697,29 @@ Early check-in and late check-out is subject to availability (at an additional f
                     </div>
                   </div>
 
-                  {/* Specs: Capacity */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  {/* Specs: Capacity & Extra Guest Pricing */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                    {["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
+                      form.propertyType?.toUpperCase()
+                    ) && (
+                      <div>
+                        <label className="block text-slate-600 text-xs font-semibold mb-1">
+                          Inventory
+                        </label>
+                        <input
+                          required={["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
+                            form.propertyType?.toUpperCase()
+                          )}
+                          type="number"
+                          min={1}
+                          value={form.rooms}
+                          onChange={(e) =>
+                            setForm({ ...form, rooms: e.target.value })
+                          }
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-slate-600 text-xs font-semibold mb-1">
                         Base Guests
