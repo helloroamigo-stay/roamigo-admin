@@ -698,8 +698,25 @@ Early check-in and late check-out is subject to availability (at an additional f
                     </div>
                   </div>
 
-                  {/* Specs: Capacity */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  {/* Specs: Capacity & Extra Guest Pricing */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                    {form.propertyType === "APARTMENT" && (
+                      <div>
+                        <label className="block text-slate-600 text-xs font-semibold mb-1">
+                          Rooms
+                        </label>
+                        <input
+                          required={form.propertyType === "APARTMENT"}
+                          type="number"
+                          min={1}
+                          value={form.rooms}
+                          onChange={(e) =>
+                            setForm({ ...form, rooms: e.target.value })
+                          }
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-slate-600 text-xs font-semibold mb-1">
                         Base Guests
