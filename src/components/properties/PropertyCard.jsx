@@ -179,7 +179,7 @@ export const PropertyCard = ({
               title="Manage calendar & availability"
             >
               <Calendar className="w-4 h-4 text-amber-600" />
-              <span>Dates</span>
+              <span>Manage</span>
             </Link>
 
             <Link

@@ -90,6 +90,7 @@ const PropertyForm = () => {
     pricePerNight: "",
     baseGuests: 2,
     guestsMax: 2,
+    rooms: 0,
     kidsCount: 0,
     bedrooms: 1,
     bathrooms: 1,
@@ -184,6 +185,7 @@ Early check-in and late check-out is subject to availability (at an additional f
         baseGuests: p.baseGuests !== undefined ? p.baseGuests : 2,
         guestsMax: p.guestsMax || 2,
         kidsCount: p.kidsCount !== undefined ? p.kidsCount : 0,
+        rooms: p.rooms?.length,
         bedrooms: p.bedrooms || 1,
         bathrooms: p.bathrooms || 1,
         propertyType: p.propertyType || "VILLA",
@@ -438,7 +440,9 @@ Early check-in and late check-out is subject to availability (at an additional f
         guestsMax: Number(form.guestsMax),
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
-        rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(form.propertyType?.toUpperCase())
+        rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
+          form.propertyType?.toUpperCase()
+        )
           ? Number(form.rooms || 1)
           : undefined,
         images: form.images,
@@ -550,6 +554,8 @@ Early check-in and late check-out is subject to availability (at an additional f
         </div>
       )}
 
+      {console.log(form.providerId)}
+
       {/* Main Form Content divided into Structured Tabs */}
       <form onSubmit={handleSubmit} className="space-y-8">
         <Tabs
@@ -582,7 +588,7 @@ Early check-in and late check-out is subject to availability (at an additional f
                       >
                         <option value="">Select Provider Host</option>
                         {providers.map((p) => (
-                          <option key={p._id} value={p._id}>
+                          <option key={p._id} value={p?.userId?._id}>
                             {p.businessName || p.userId?.name || "Unknown"} (
                             {p.userId?.email})
                           </option>
@@ -696,7 +702,6 @@ Early check-in and late check-out is subject to availability (at an additional f
                       />
                     </div>
                   </div>
-
                   {/* Specs: Capacity & Extra Guest Pricing */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                     {["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
@@ -707,9 +712,12 @@ Early check-in and late check-out is subject to availability (at an additional f
                           Inventory
                         </label>
                         <input
-                          required={["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
-                            form.propertyType?.toUpperCase()
-                          )}
+                          required={[
+                            "ROOMS",
+                            "ROOM",
+                            "HOTEL",
+                            "APARTMENT",
+                          ].includes(form.propertyType?.toUpperCase())}
                           type="number"
                           min={1}
                           value={form.rooms}
