@@ -30,6 +30,9 @@ import {
   ArrowUpRight,
   ShieldCheck,
   RefreshCw,
+  FileText,
+  Download,
+  FileCheck2,
 } from "lucide-react";
 
 export const Providers = () => {
@@ -57,6 +60,20 @@ export const Providers = () => {
     useState(null);
   const [hostBookings, setHostBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+
+  // Modal States: Host Verification Documents
+  const [docsModalOpen, setDocsModalOpen] = useState(false);
+  const [selectedProviderForDocs, setSelectedProviderForDocs] = useState(null);
+
+  const handleOpenDocsModal = (provider) => {
+    setSelectedProviderForDocs(provider);
+    setDocsModalOpen(true);
+  };
+
+  const isPdf = (url) => {
+    if (!url) return false;
+    return url.toLowerCase().includes(".pdf");
+  };
 
   useEffect(() => {
     fetchProviders();
@@ -470,7 +487,7 @@ export const Providers = () => {
                   <th className="py-4 px-6">Status</th>
                   <th className="py-4 px-6 text-center">Properties Listed</th>
                   <th className="py-4 px-6 text-center">Bookings</th>
-                  <th className="py-4 px-6">Performance</th>
+                  <th className="py-4 px-6 text-center">Verification Docs</th>
                   <th className="py-4 px-6 text-right">
                     Verification & Actions
                   </th>
@@ -581,25 +598,34 @@ export const Providers = () => {
                         </button>
                       </td>
 
-                      {/* Performance */}
-                      <td className="py-4 px-6">
-                        <div className="text-xs space-y-0.5">
-                          <div className="text-slate-900 font-bold flex items-center gap-1">
-                            <span className="text-amber-500">★</span>
-                            <span>
-                              {p.rating ? `${p.rating.toFixed(1)}/5` : "New"}
-                            </span>
-                            <span className="text-slate-400 font-normal">
-                              ({p.reviewsCount || 0} reviews)
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            Resp:{" "}
-                            <span className="font-semibold text-slate-700">
-                              {p.responseRate || "100%"}
-                            </span>
-                          </div>
-                        </div>
+                      {/* Verification Docs */}
+                      <td className="py-4 px-6 text-center">
+                        {(() => {
+                          const aadhar =
+                            p.aadharCard || p.documents?.aadharCard;
+                          const bill =
+                            p.propertyBill || p.documents?.propertyBill;
+                          const uploadedCount =
+                            (aadhar ? 1 : 0) + (bill ? 1 : 0);
+
+                          return (
+                            <button
+                              onClick={() => handleOpenDocsModal(p)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 font-bold text-xs rounded-xl border cursor-pointer shadow-2xs transition-all hover:scale-102 ${
+                                uploadedCount === 2
+                                  ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
+                                  : uploadedCount === 1
+                                  ? "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
+                                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200"
+                              }`}
+                              title="Click to view host verification documents (Aadhaar & Property Bill)"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-brand-600" />
+                              <span>Docs ({uploadedCount}/2)</span>
+                              <Eye className="w-3 h-3 ml-0.5 opacity-70" />
+                            </button>
+                          );
+                        })()}
                       </td>
 
                       {/* Actions */}
@@ -1039,6 +1065,304 @@ export const Providers = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Host Verification Documents (Aadhaar & Property Bill) */}
+      {docsModalOpen && selectedProviderForDocs && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-brand-100 text-brand-700 flex items-center justify-center font-bold shadow-xs">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Host Verification Documents
+                    </h3>
+                    {getStatusBadge(selectedProviderForDocs.approvalStatus)}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Operator:{" "}
+                    <strong className="text-slate-800 font-semibold">
+                      {selectedProviderForDocs.userId?.name || "Unknown Host"}
+                    </strong>
+                    {selectedProviderForDocs.businessName
+                      ? ` (${selectedProviderForDocs.businessName})`
+                      : ""}{" "}
+                    • {selectedProviderForDocs.userId?.email || "No email"}
+                    {selectedProviderForDocs.userId?.phone
+                      ? ` • ${selectedProviderForDocs.userId.phone}`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDocsModalOpen(false)}
+                className="p-2 hover:bg-slate-200 rounded-xl text-slate-400 hover:text-slate-700 transition-all cursor-pointer"
+                title="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {(() => {
+                const aadhar =
+                  selectedProviderForDocs.aadharCard ||
+                  selectedProviderForDocs.documents?.aadharCard;
+                const bill =
+                  selectedProviderForDocs.propertyBill ||
+                  selectedProviderForDocs.documents?.propertyBill;
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Document 1: Aadhaar Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-2xs">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900">
+                                Aadhaar Card
+                              </h4>
+                              <p className="text-[10px] text-slate-500">
+                                Government Identity Proof
+                              </p>
+                            </div>
+                          </div>
+                          {aadhar ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Uploaded
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-rose-600" />
+                              Not Uploaded
+                            </span>
+                          )}
+                        </div>
+
+                        {aadhar ? (
+                          <div className="space-y-3">
+                            {isPdf(aadhar) ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200">
+                                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-rose-600 shrink-0 font-bold text-[10px]">
+                                    PDF
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-slate-800 truncate">
+                                      {aadhar.split("/").pop() ||
+                                        "Aadhaar Card"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400">
+                                      PDF Document
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-2xs">
+                                  <iframe
+                                    src={getFullUploadUrl(aadhar)}
+                                    className="w-full h-64 border-0"
+                                    title="Aadhaar Card PDF Preview"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-slate-200 overflow-hidden bg-white max-h-72 flex items-center justify-center shadow-2xs group relative">
+                                <img
+                                  src={getFullUploadUrl(aadhar)}
+                                  alt="Aadhaar Card"
+                                  className="w-full h-auto max-h-72 object-contain group-hover:scale-102 transition-transform duration-300"
+                                />
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 pt-2">
+                              <a
+                                href={getFullUploadUrl(aadhar)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-2 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold rounded-xl border border-brand-200 text-center flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Open Full Document</span>
+                              </a>
+                              <a
+                                href={getFullUploadUrl(aadhar)}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                title="Download Document"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 space-y-2">
+                            <FileText className="w-8 h-8 text-slate-300 mx-auto" />
+                            <p className="text-xs font-bold text-slate-700">
+                              No Aadhaar Card Uploaded
+                            </p>
+                            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+                              The host operator has not attached their Aadhaar
+                              Card to their profile yet.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Document 2: Property Bill */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-2xs">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-xs">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900">
+                                Property Bill
+                              </h4>
+                              <p className="text-[10px] text-slate-500">
+                                Electricity / Water / Municipal Tax Bill
+                              </p>
+                            </div>
+                          </div>
+                          {bill ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Uploaded
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-rose-600" />
+                              Not Uploaded
+                            </span>
+                          )}
+                        </div>
+
+                        {bill ? (
+                          <div className="space-y-3">
+                            {isPdf(bill) ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200">
+                                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-rose-600 shrink-0 font-bold text-[10px]">
+                                    PDF
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-slate-800 truncate">
+                                      {bill.split("/").pop() || "Property Bill"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400">
+                                      PDF Document
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-2xs">
+                                  <iframe
+                                    src={getFullUploadUrl(bill)}
+                                    className="w-full h-64 border-0"
+                                    title="Property Bill PDF Preview"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-slate-200 overflow-hidden bg-white max-h-72 flex items-center justify-center shadow-2xs group relative">
+                                <img
+                                  src={getFullUploadUrl(bill)}
+                                  alt="Property Bill"
+                                  className="w-full h-auto max-h-72 object-contain group-hover:scale-102 transition-transform duration-300"
+                                />
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 pt-2">
+                              <a
+                                href={getFullUploadUrl(bill)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-2 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold rounded-xl border border-brand-200 text-center flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Open Full Document</span>
+                              </a>
+                              <a
+                                href={getFullUploadUrl(bill)}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                title="Download Document"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 space-y-2">
+                            <FileText className="w-8 h-8 text-slate-300 mx-auto" />
+                            <p className="text-xs font-bold text-slate-700">
+                              No Property Bill Uploaded
+                            </p>
+                            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+                              The host operator has not attached their Property
+                              Bill to their profile yet.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+              <div>
+                Documents are stored in persistent uploads storage outside
+                ephemeral builds.
+              </div>
+              <div className="flex items-center gap-2">
+                {[
+                  "REGISTERED",
+                  "PENDING_VERIFICATION",
+                  "PENDING",
+                  "PENDING_APPROVAL",
+                ].includes(selectedProviderForDocs.approvalStatus) && (
+                  <button
+                    onClick={() => {
+                      handleApprove(selectedProviderForDocs._id);
+                      setDocsModalOpen(false);
+                    }}
+                    className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold cursor-pointer transition-all flex items-center gap-1.5"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Approve Host</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setDocsModalOpen(false)}
+                  className="py-2 px-5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-semibold cursor-pointer transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
