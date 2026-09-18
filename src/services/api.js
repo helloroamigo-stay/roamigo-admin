@@ -7,8 +7,8 @@ const getApiBaseUrl = () => {
     return 'https://roamigo-backend.in/api/v1';
   }
 
-  if (hostname === 'localhost') {
-    return 'http://localhost:5000/api/v1'
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5000/api/v1';
   }
 
   return 'https://test.roamigo-backend.in/api/v1';

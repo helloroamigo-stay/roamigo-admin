@@ -24,7 +24,7 @@ const Properties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
-  const [activeTab, setActiveTab] = useState("PENDING_APPROVAL");
+  const [activeTab, setActiveTab] = useState("PUBLISHED");
   const [error, setError] = useState(null);
 
   // Search, Pagination & View Mode States
@@ -50,7 +50,11 @@ const Properties = () => {
     title: "",
     description: "",
     pricePerNight: "",
+    baseGuests: 2,
     guestsMax: 2,
+    kidsCount: 0,
+    extraAdultFee: 0,
+    extraChildFee: 0,
     bedrooms: 1,
     bathrooms: 1,
     propertyType: "VILLA",
@@ -88,7 +92,11 @@ const Properties = () => {
       title: p.title || "",
       description: p.description || "",
       pricePerNight: p.pricePerNight || "",
+      baseGuests: p.baseGuests !== undefined ? p.baseGuests : 2,
       guestsMax: p.guestsMax || 2,
+      kidsCount: p.kidsCount !== undefined ? p.kidsCount : 0,
+      extraAdultFee: p.extraAdultFee !== undefined ? p.extraAdultFee : 0,
+      extraChildFee: p.extraChildFee !== undefined ? p.extraChildFee : 0,
       bedrooms: p.bedrooms || 1,
       bathrooms: p.bathrooms || 1,
       propertyType: p.propertyType || "VILLA",
@@ -257,10 +265,16 @@ const Properties = () => {
         title: form.title,
         description: form.description || undefined,
         pricePerNight: parseFloat(form.pricePerNight),
+        baseGuests: parseInt(form.baseGuests || 2, 10),
         guestsMax: parseInt(form.guestsMax, 10),
+        kidsCount: parseInt(form.kidsCount || 0, 10),
+        extraAdultFee: parseFloat(form.extraAdultFee || 0),
+        extraChildFee: parseFloat(form.extraChildFee || 0),
         bedrooms: parseInt(form.bedrooms, 10),
         bathrooms: parseInt(form.bathrooms, 10),
-        rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(form.propertyType?.toUpperCase())
+        rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
+          form.propertyType?.toUpperCase()
+        )
           ? Number(form.rooms || 1)
           : undefined,
         propertyType: form.propertyType,
@@ -367,7 +381,9 @@ const Properties = () => {
     } else if (activeTab === "ALL") {
       matchesTab = true;
     } else {
-      matchesTab = ["DRAFT", "REJECTED", "SUSPENDED", "ARCHIVED"].includes(p.status);
+      matchesTab = ["DRAFT", "REJECTED", "SUSPENDED", "ARCHIVED"].includes(
+        p.status
+      );
     }
 
     if (!matchesTab) return false;
@@ -484,7 +500,9 @@ const Properties = () => {
       render: (_, p) => (
         <div className="text-xs">
           <div className="font-semibold text-slate-900">
-            {p.providerId?.name || p.providerId?.userId?.name || "Independent Host"}
+            {p.providerId?.name ||
+              p.providerId?.userId?.name ||
+              "Independent Host"}
           </div>
           {(p.providerId?.email || p.providerId?.userId?.email) && (
             <div className="text-slate-400 text-[11px]">
@@ -501,10 +519,13 @@ const Properties = () => {
         <div className="text-xs space-y-1">
           <div className="font-bold text-slate-900">
             ₹{p.pricePerNight?.toLocaleString("en-IN")}{" "}
-            <span className="text-[10px] text-slate-500 font-normal">/night</span>
+            <span className="text-[10px] text-slate-500 font-normal">
+              /night
+            </span>
           </div>
           <div className="text-slate-500 text-[11px]">
-            {p.guestsMax || 2} guests · {p.bedrooms || 1} bed · {p.bathrooms || 1} bath
+            {p.guestsMax || 2} guests · {p.bedrooms || 1} bed ·{" "}
+            {p.bathrooms || 1} bath
           </div>
         </div>
       ),
@@ -523,7 +544,11 @@ const Properties = () => {
               ? "bg-amber-500 border-amber-400 text-white hover:bg-amber-600"
               : "bg-slate-50 border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-300"
           }`}
-          title={p.featured ? "Featured listing (Click to remove)" : "Mark as featured"}
+          title={
+            p.featured
+              ? "Featured listing (Click to remove)"
+              : "Mark as featured"
+          }
         >
           {actionLoading === p._id ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -620,7 +645,8 @@ const Properties = () => {
         setActiveTab={setActiveTab}
         propertiesCount={{
           all: properties.length,
-          pending: properties.filter((p) => p.status === "PENDING_APPROVAL").length,
+          pending: properties.filter((p) => p.status === "PENDING_APPROVAL")
+            .length,
           published: properties.filter((p) => p.status === "PUBLISHED").length,
         }}
         onOpenCreateModal={() => {
@@ -656,8 +682,15 @@ const Properties = () => {
         {/* Status indicator & View Switcher */}
         <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-4">
           <div className="text-xs text-slate-500 font-medium">
-            Showing <span className="font-bold text-slate-900">{filteredProperties.length}</span> of{" "}
-            <span className="font-bold text-slate-900">{properties.length}</span> properties
+            Showing{" "}
+            <span className="font-bold text-slate-900">
+              {filteredProperties.length}
+            </span>{" "}
+            of{" "}
+            <span className="font-bold text-slate-900">
+              {properties.length}
+            </span>{" "}
+            properties
           </div>
 
           <div className="flex items-center bg-slate-100 p-1 border border-slate-200 rounded-xl">

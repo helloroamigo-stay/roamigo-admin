@@ -310,6 +310,30 @@ export const PropertyFormModal = ({
             </div>
 
             <div>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Extra Adult Fee (₹)</label>
+              <input
+                type="number"
+                value={form.extraAdultFee || 0}
+                onChange={(e) => setForm({ ...form, extraAdultFee: e.target.value })}
+                className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                min="0"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Extra Kid Fee (₹)</label>
+              <input
+                type="number"
+                value={form.extraChildFee || 0}
+                onChange={(e) => setForm({ ...form, extraChildFee: e.target.value })}
+                className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500"
+                min="0"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
               <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wide">Bedrooms *</label>
               <input
                 type="number"

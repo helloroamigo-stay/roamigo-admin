@@ -90,6 +90,8 @@ const PropertyForm = () => {
     pricePerNight: "",
     baseGuests: 2,
     guestsMax: 2,
+    extraAdultFee: 0,
+    extraChildFee: 0,
     rooms: 0,
     kidsCount: 0,
     bedrooms: 1,
@@ -184,6 +186,8 @@ Early check-in and late check-out is subject to availability (at an additional f
         pricePerNight: p.pricePerNight || "",
         baseGuests: p.baseGuests !== undefined ? p.baseGuests : 2,
         guestsMax: p.guestsMax || 2,
+        extraAdultFee: p.extraAdultFee !== undefined ? p.extraAdultFee : 0,
+        extraChildFee: p.extraChildFee !== undefined ? p.extraChildFee : 0,
         kidsCount: p.kidsCount !== undefined ? p.kidsCount : 0,
         rooms: p.rooms?.length,
         bedrooms: p.bedrooms || 1,
@@ -438,6 +442,9 @@ Early check-in and late check-out is subject to availability (at an additional f
         ...form,
         pricePerNight: Number(form.pricePerNight),
         guestsMax: Number(form.guestsMax),
+        baseGuests: Number(form.baseGuests || 2),
+        extraAdultFee: Number(form.extraAdultFee || 0),
+        extraChildFee: Number(form.extraChildFee || 0),
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
         rooms: ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
@@ -767,6 +774,36 @@ Early check-in and late check-out is subject to availability (at an additional f
                         onChange={(e) =>
                           setForm({ ...form, kidsCount: e.target.value })
                         }
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Extra Adult Fee (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={form.extraAdultFee}
+                        onChange={(e) =>
+                          setForm({ ...form, extraAdultFee: e.target.value })
+                        }
+                        placeholder="0"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 text-xs font-semibold mb-1">
+                        Extra Kid Fee (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={form.extraChildFee}
+                        onChange={(e) =>
+                          setForm({ ...form, extraChildFee: e.target.value })
+                        }
+                        placeholder="0"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 font-bold"
                       />
                     </div>
