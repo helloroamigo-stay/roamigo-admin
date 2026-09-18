@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Calendar as AntCalendar,
@@ -27,6 +27,7 @@ import {
   Link as LinkIcon,
   Globe,
   Plus,
+  Minus,
   ExternalLink,
   DollarSign,
   Info,
@@ -34,6 +35,12 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  X,
+  BedDouble,
+  Layers,
+  Home,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { adminAPI } from "../services/api";
 import dayjs from "dayjs";
@@ -72,11 +79,39 @@ const PropertyCalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  // Airbnb Drag-to-Select State & Refs
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [dragAnchor, setDragAnchor] = useState(null);
+  const [selectionRange, setSelectionRange] = useState(null);
+  const [rangeCustomPrice, setRangeCustomPrice] = useState("");
+  const [rangeExtraAdultPrice, setRangeExtraAdultPrice] = useState("");
+  const [rangeExtraChildPrice, setRangeExtraChildPrice] = useState("");
+
+  const isMouseDownRef = useRef(false);
+  const dragAnchorRef = useRef(null);
+  const isDraggingRef = useRef(false);
+
+  const handleSelectDate = (date) => {
+    if (!date) return;
+    setSelectedDate(date);
+    setSelectionRange([date, date]);
+    setCustomRateRange([date, date]);
+    setBlockRange([date, date]);
+    setReleaseRange([date, date]);
+    setIsDrawerOpen(true);
+  };
+
   // Range Actions state
   const [releaseRange, setReleaseRange] = useState(null);
   const [blockRange, setBlockRange] = useState(null);
   const [blockReason, setBlockReason] = useState("Admin manual block");
   const [customPriceOverride, setCustomPriceOverride] = useState("");
+
+  // Room Count states for + / - steppers (no dropdowns)
+  const [topRoomCount, setTopRoomCount] = useState(1);
+  const [drawerRoomCount, setDrawerRoomCount] = useState(1);
+  const [sidebarReleaseRoomCount, setSidebarReleaseRoomCount] = useState(1);
+  const [sidebarBlockRoomCount, setSidebarBlockRoomCount] = useState(1);
 
   // Dynamic Custom Rates State
   const [customRateRange, setCustomRateRange] = useState(null);
@@ -95,6 +130,16 @@ const PropertyCalendarPage = () => {
   const [singleDateExtraChildPrice, setSingleDateExtraChildPrice] =
     useState("");
 
+  const isMultiDayRange =
+    selectionRange &&
+    selectionRange[0] &&
+    selectionRange[1] &&
+    !selectionRange[0].isSame(selectionRange[1], "day");
+
+  const nightsCount = isMultiDayRange
+    ? selectionRange[1].diff(selectionRange[0], "day") + 1
+    : 1;
+
   const handleToggleDayOfWeek = (dayIdx) => {
     setDaysOfWeek((prev) =>
       prev.includes(dayIdx)
@@ -103,31 +148,123 @@ const PropertyCalendarPage = () => {
     );
   };
 
+  const isRoomBased =
+    (Array.isArray(property?.rooms) && property.rooms.length > 0) ||
+    ["ROOMS", "ROOM", "HOTEL", "APARTMENT"].includes(
+      property?.propertyType?.toUpperCase()
+    );
+
+  const propertyRooms = React.useMemo(() => {
+    if (Array.isArray(property?.rooms) && property.rooms.length > 0) {
+      return property.rooms.map((r, idx) => ({
+        id: r.name || `room-${idx + 1}`,
+        name: r.name
+          ? r.name.startsWith("room-")
+            ? `Room ${r.name.replace("room-", "")}`
+            : r.name
+          : `Room ${idx + 1}`,
+        rawName: r.name || `room-${idx + 1}`,
+        bed: r.bed || "",
+        bath: r.bath || "",
+      }));
+    }
+    const count = Math.max(1, property?.bedrooms || 1);
+    return Array.from({ length: count }, (_, idx) => ({
+      id: `room-${idx + 1}`,
+      name: `Room ${idx + 1}`,
+      rawName: `room-${idx + 1}`,
+      bed: "",
+      bath: "",
+    }));
+  }, [property]);
+
+  const totalInventory = propertyRooms.length;
+
   const handleUpdateCustomRates = async () => {
-    if (!customRateRange || customRateRange.length !== 2) {
-      message.warning("Please select a date range for custom rates.");
+    const effectiveRange =
+      customRateRange &&
+      customRateRange.length === 2 &&
+      customRateRange[0] &&
+      customRateRange[1]
+        ? customRateRange
+        : selectionRange &&
+          selectionRange.length === 2 &&
+          selectionRange[0] &&
+          selectionRange[1]
+        ? selectionRange
+        : selectedDate
+        ? [selectedDate, selectedDate]
+        : null;
+
+    if (!effectiveRange || !effectiveRange[0] || !effectiveRange[1]) {
+      message.warning(
+        "Please select a date range or click a date on the calendar first."
+      );
       return;
     }
-    const [start, end] = customRateRange;
+
+    const priceVal =
+      customRateInput !== "" ? customRateInput : singleDateCustomPrice;
+    const adultFeeVal =
+      customExtraAdultFeeInput !== ""
+        ? customExtraAdultFeeInput
+        : singleDateExtraAdultPrice;
+    const childFeeVal =
+      customExtraChildFeeInput !== ""
+        ? customExtraChildFeeInput
+        : singleDateExtraChildPrice;
+
+    if (
+      (priceVal === undefined || priceVal === "") &&
+      (adultFeeVal === undefined || adultFeeVal === "") &&
+      (childFeeVal === undefined || childFeeVal === "")
+    ) {
+      message.warning(
+        "Please enter a base nightly rate or extra adult/kid fee override to apply."
+      );
+      return;
+    }
+
+    const start = dayjs(effectiveRange[0]);
+    const end = dayjs(effectiveRange[1]);
+
     try {
       setActionLoading(true);
       const payload = {
         startDate: start.format("YYYY-MM-DD"),
         endDate: end.format("YYYY-MM-DD"),
         daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [0, 1, 2, 3, 4, 5, 6],
-        priceOverride: customRateInput ? Number(customRateInput) : undefined,
-        extraAdultFeeOverride: customExtraAdultFeeInput
-          ? Number(customExtraAdultFeeInput)
-          : undefined,
-        extraChildFeeOverride: customExtraChildFeeInput
-          ? Number(customExtraChildFeeInput)
-          : undefined,
-        isBlocked: customRateStatus === "closed",
         reason: customRateReason || "Custom rate update",
       };
+
+      if (
+        priceVal !== "" &&
+        priceVal !== undefined &&
+        !isNaN(Number(priceVal))
+      ) {
+        payload.priceOverride = Number(priceVal);
+      }
+      if (
+        adultFeeVal !== "" &&
+        adultFeeVal !== undefined &&
+        !isNaN(Number(adultFeeVal))
+      ) {
+        payload.extraAdultFeeOverride = Number(adultFeeVal);
+        payload.extraAdultFee = Number(adultFeeVal);
+      }
+      if (
+        childFeeVal !== "" &&
+        childFeeVal !== undefined &&
+        !isNaN(Number(childFeeVal))
+      ) {
+        payload.extraChildFeeOverride = Number(childFeeVal);
+        payload.extraChildFee = Number(childFeeVal);
+        payload.extraKidFeeOverride = Number(childFeeVal);
+        payload.extraKidFee = Number(childFeeVal);
+      }
+
       const res = await adminAPI.updateCustomRates(id, payload);
       message.success(res.message || "Custom rates updated successfully!");
-      setCustomRateRange(null);
       setCustomRateInput("");
       setCustomExtraAdultFeeInput("");
       setCustomExtraChildFeeInput("");
@@ -140,8 +277,122 @@ const PropertyCalendarPage = () => {
     }
   };
 
+  const handleTopBlockDates = async () => {
+    const effectiveRange =
+      customRateRange &&
+      customRateRange.length === 2 &&
+      customRateRange[0] &&
+      customRateRange[1]
+        ? customRateRange
+        : selectionRange &&
+          selectionRange.length === 2 &&
+          selectionRange[0] &&
+          selectionRange[1]
+        ? selectionRange
+        : selectedDate
+        ? [selectedDate, selectedDate]
+        : null;
+
+    if (!effectiveRange || !effectiveRange[0] || !effectiveRange[1]) {
+      message.warning(
+        "Please select a date range or click a date on the calendar first."
+      );
+      return;
+    }
+    const start = dayjs(effectiveRange[0]);
+    const end = dayjs(effectiveRange[1]);
+    try {
+      setActionLoading(true);
+      const targetRooms = propertyRooms
+        .slice(0, topRoomCount)
+        .map((r) => r.rawName);
+      const payload = {
+        startDate: start.format("YYYY-MM-DD"),
+        endDate: end.format("YYYY-MM-DD"),
+        ...(topRoomCount >= totalInventory
+          ? { roomId: "ALL" }
+          : { rooms: targetRooms }),
+        reason: customRateReason || "Host blocked rooms",
+      };
+      const res = await adminAPI.blockPropertyDates(id, payload);
+      message.success(
+        res.message || `Blocked ${topRoomCount} room(s) for selected dates!`
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Error blocking dates:", err);
+      message.error(err.message || "Failed to block dates.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTopReleaseDates = async () => {
+    const effectiveRange =
+      customRateRange &&
+      customRateRange.length === 2 &&
+      customRateRange[0] &&
+      customRateRange[1]
+        ? customRateRange
+        : selectionRange &&
+          selectionRange.length === 2 &&
+          selectionRange[0] &&
+          selectionRange[1]
+        ? selectionRange
+        : selectedDate
+        ? [selectedDate, selectedDate]
+        : null;
+
+    if (!effectiveRange || !effectiveRange[0] || !effectiveRange[1]) {
+      message.warning(
+        "Please select a date range or click a date on the calendar first."
+      );
+      return;
+    }
+    const start = dayjs(effectiveRange[0]);
+    const end = dayjs(effectiveRange[1]);
+    try {
+      setActionLoading(true);
+      const targetRooms = propertyRooms
+        .slice(0, topRoomCount)
+        .map((r) => r.rawName);
+      const payload = {
+        startDate: start.format("YYYY-MM-DD"),
+        endDate: end.format("YYYY-MM-DD"),
+        ...(topRoomCount >= totalInventory
+          ? { roomId: "ALL" }
+          : { rooms: targetRooms }),
+      };
+      const res = await adminAPI.releasePropertyDates(id, payload);
+      message.success(
+        res.message || `Released ${topRoomCount} room(s) for selected dates!`
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Error releasing dates:", err);
+      message.error(err.message || "Failed to release dates.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSaveSingleDateCustomRate = async () => {
-    if (!selectedDate) return;
+    if (!selectedDate) {
+      message.warning("Please select a date on the calendar first.");
+      return;
+    }
+    if (
+      (singleDateCustomPrice === "" || singleDateCustomPrice === undefined) &&
+      (singleDateExtraAdultPrice === "" ||
+        singleDateExtraAdultPrice === undefined) &&
+      (singleDateExtraChildPrice === "" ||
+        singleDateExtraChildPrice === undefined)
+    ) {
+      message.warning(
+        "Please enter at least one rate or fee override to save."
+      );
+      return;
+    }
     const dateStr = selectedDate.format("YYYY-MM-DD");
     try {
       setActionLoading(true);
@@ -149,23 +400,38 @@ const PropertyCalendarPage = () => {
         startDate: dateStr,
         endDate: dateStr,
         daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-        priceOverride: singleDateCustomPrice
-          ? Number(singleDateCustomPrice)
-          : undefined,
-        extraAdultFeeOverride: singleDateExtraAdultPrice
-          ? Number(singleDateExtraAdultPrice)
-          : undefined,
-        extraChildFeeOverride: singleDateExtraChildPrice
-          ? Number(singleDateExtraChildPrice)
-          : undefined,
         reason: "Single date rate update",
       };
+      if (
+        singleDateCustomPrice !== "" &&
+        singleDateCustomPrice !== undefined &&
+        !isNaN(Number(singleDateCustomPrice))
+      ) {
+        payload.priceOverride = Number(singleDateCustomPrice);
+      }
+      if (
+        singleDateExtraAdultPrice !== "" &&
+        singleDateExtraAdultPrice !== undefined &&
+        !isNaN(Number(singleDateExtraAdultPrice))
+      ) {
+        payload.extraAdultFeeOverride = Number(singleDateExtraAdultPrice);
+        payload.extraAdultFee = Number(singleDateExtraAdultPrice);
+      }
+      if (
+        singleDateExtraChildPrice !== "" &&
+        singleDateExtraChildPrice !== undefined &&
+        !isNaN(Number(singleDateExtraChildPrice))
+      ) {
+        payload.extraChildFeeOverride = Number(singleDateExtraChildPrice);
+        payload.extraChildFee = Number(singleDateExtraChildPrice);
+        payload.extraKidFeeOverride = Number(singleDateExtraChildPrice);
+        payload.extraKidFee = Number(singleDateExtraChildPrice);
+      }
       const res = await adminAPI.updateCustomRates(id, payload);
-      message.success(res.message || "Single date rate updated!");
+      message.success(res.message || "Single date rates and fees updated!");
       setSingleDateCustomPrice("");
       setSingleDateExtraAdultPrice("");
       setSingleDateExtraChildPrice("");
-      setIsDrawerOpen(false);
       fetchData();
     } catch (err) {
       console.error("Error updating single date rate:", err);
@@ -175,12 +441,165 @@ const PropertyCalendarPage = () => {
     }
   };
 
-  // Map for fast lookup by YYYY-MM-DD
-  const availabilityMap = new Map();
-  availabilities.forEach((item) => {
-    const dateKey = item.dateStr || dayjs(item.date).format("YYYY-MM-DD");
-    availabilityMap.set(dateKey, item);
-  });
+  const handleClearSingleDateCustomRates = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    try {
+      setActionLoading(true);
+      const payload = {
+        startDate: dateStr,
+        endDate: dateStr,
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        priceOverride: null,
+        extraAdultFeeOverride: null,
+        extraChildFeeOverride: null,
+        reason: "Reset custom rates to base",
+      };
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(res.message || "Custom rates and fees reset to base!");
+      setSingleDateCustomPrice("");
+      setSingleDateExtraAdultPrice("");
+      setSingleDateExtraChildPrice("");
+      fetchData();
+    } catch (err) {
+      console.error("Error clearing custom rates:", err);
+      message.error(err.message || "Failed to reset custom rates.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Group all availability records by date key YYYY-MM-DD
+  const dateAvailabilitiesMap = React.useMemo(() => {
+    const map = new Map();
+    availabilities.forEach((item) => {
+      const dateKey = item.dateStr || dayjs(item.date).format("YYYY-MM-DD");
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey).push(item);
+    });
+    return map;
+  }, [availabilities]);
+
+  // Map for fast lookup by YYYY-MM-DD (prefers global record or first blocked record)
+  const availabilityMap = React.useMemo(() => {
+    const map = new Map();
+    dateAvailabilitiesMap.forEach((items, dateKey) => {
+      const globalRec = items.find((i) => !i.roomId || i.roomId === "ALL");
+      map.set(dateKey, globalRec || items[0]);
+    });
+    return map;
+  }, [dateAvailabilitiesMap]);
+
+  const getRecordsForDate = (dateStr) => {
+    return dateAvailabilitiesMap.get(dateStr) || [];
+  };
+
+  const isGloballyBlocked = (dateStr) => {
+    const recs = getRecordsForDate(dateStr);
+    return recs.some(
+      (r) => (!r.roomId || r.roomId === "ALL") && (r.isBlocked || !!r.bookingId)
+    );
+  };
+
+  const isRoomBlockedOnDate = (dateStr, roomId) => {
+    if (isGloballyBlocked(dateStr)) return true;
+    const recs = getRecordsForDate(dateStr);
+    return recs.some(
+      (r) => r.roomId === roomId && (r.isBlocked || !!r.bookingId)
+    );
+  };
+
+  const getBlockedRoomsList = (dateStr) => {
+    if (isGloballyBlocked(dateStr)) {
+      return propertyRooms.map((r) => r.rawName);
+    }
+    const recs = getRecordsForDate(dateStr);
+    const blocked = new Set();
+    recs.forEach((r) => {
+      if (r.roomId && (r.isBlocked || !!r.bookingId)) {
+        blocked.add(r.roomId);
+      }
+    });
+    return Array.from(blocked);
+  };
+
+  const getUsedRoomsCount = (dateStr) => {
+    if (isGloballyBlocked(dateStr)) {
+      return totalInventory;
+    }
+    const recs = getRecordsForDate(dateStr);
+    const blocked = new Set();
+    recs.forEach((r) => {
+      if (r.isBlocked || !!r.bookingId) {
+        if (!r.roomId || r.roomId === "ALL") {
+          for (let i = 0; i < totalInventory; i++) {
+            blocked.add(propertyRooms[i]?.rawName || `room-${i + 1}`);
+          }
+        } else {
+          blocked.add(r.roomId);
+        }
+      }
+    });
+    return Math.min(blocked.size, totalInventory);
+  };
+
+  const getAvailableRoomsCount = (dateStr) => {
+    const total = totalInventory;
+    const used = getUsedRoomsCount(dateStr);
+    return Math.max(0, total - used);
+  };
+
+  const handleSingleDateIncreaseBlocked = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    // Find first unblocked room
+    const unblockedRoom = propertyRooms.find(
+      (r) => !isRoomBlockedOnDate(dateStr, r.rawName)
+    );
+    if (!unblockedRoom) {
+      message.info("All rooms are already blocked for this date.");
+      return;
+    }
+    await handleToggleRoomBlock(unblockedRoom.rawName, false);
+  };
+
+  const handleSingleDateDecreaseBlocked = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    if (isGloballyBlocked(dateStr)) {
+      try {
+        setActionLoading(true);
+        await adminAPI.releasePropertyDates(id, { dates: [dateStr] });
+        if (totalInventory > 1) {
+          const remainingRooms = propertyRooms
+            .slice(0, totalInventory - 1)
+            .map((r) => r.rawName);
+          await adminAPI.blockPropertyDates(id, {
+            dates: [dateStr],
+            rooms: remainingRooms,
+            reason: "Admin room block",
+          });
+        }
+        message.success(`Released 1 room for ${dateStr}`);
+        fetchData();
+      } catch (err) {
+        console.error("Error decreasing blocked rooms:", err);
+        message.error(err.message || "Failed to release room.");
+      } finally {
+        setActionLoading(false);
+      }
+      return;
+    }
+    const blockedList = getBlockedRoomsList(dateStr);
+    if (blockedList.length === 0) {
+      message.info("No rooms are currently blocked for this date.");
+      return;
+    }
+    const lastBlockedRawName = blockedList[blockedList.length - 1];
+    await handleToggleRoomBlock(lastBlockedRawName, true);
+  };
 
   const fetchData = async () => {
     if (!id) return;
@@ -197,7 +616,6 @@ const PropertyCalendarPage = () => {
 
       const avList = availRes.data?.availabilities || [];
       setAvailabilities(avList);
-      console.log(avList);
     } catch (err) {
       console.error("Failed to load property calendar data:", err);
       message.error(err.message || "Could not load property calendar data.");
@@ -209,6 +627,85 @@ const PropertyCalendarPage = () => {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  // Window-level mouseup listener for Airbnb-style drag selection
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isMouseDownRef.current) {
+        const wasDragging = isDraggingRef.current;
+        const anchor = dragAnchorRef.current;
+        isMouseDownRef.current = false;
+        dragAnchorRef.current = null;
+        isDraggingRef.current = false;
+        setIsMouseDown(false);
+
+        if (
+          wasDragging &&
+          selectionRange &&
+          selectionRange[0] &&
+          selectionRange[1] &&
+          !selectionRange[0].isSame(selectionRange[1], "day")
+        ) {
+          const [start, end] = selectionRange;
+          setSelectedDate(start);
+          setCustomRateRange([start, end]);
+          setBlockRange([start, end]);
+          setReleaseRange([start, end]);
+          setIsDrawerOpen(true);
+        } else if (anchor) {
+          handleSelectDate(anchor);
+        }
+      }
+    };
+
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
+  }, [selectionRange]);
+
+  // Prepopulate single date drawer fields when a single date is selected
+  useEffect(() => {
+    if (isDrawerOpen && selectedDate && !isMultiDayRange) {
+      const dStr = selectedDate.format("YYYY-MM-DD");
+      const dateRecords = getRecordsForDate(dStr);
+      const rateRec =
+        dateRecords.find(
+          (r) =>
+            (r.priceOverride !== undefined && r.priceOverride !== null) ||
+            (r.extraAdultFeeOverride !== undefined &&
+              r.extraAdultFeeOverride !== null) ||
+            (r.extraChildFeeOverride !== undefined &&
+              r.extraChildFeeOverride !== null)
+        ) ||
+        dateRecords.find((r) => !r.roomId || r.roomId === "ALL") ||
+        availabilityMap.get(dStr);
+
+      if (rateRec) {
+        setSingleDateCustomPrice(
+          rateRec.priceOverride !== undefined && rateRec.priceOverride !== null
+            ? String(rateRec.priceOverride)
+            : ""
+        );
+        setSingleDateExtraAdultPrice(
+          rateRec.extraAdultFeeOverride !== undefined &&
+            rateRec.extraAdultFeeOverride !== null
+            ? String(rateRec.extraAdultFeeOverride)
+            : ""
+        );
+        setSingleDateExtraChildPrice(
+          rateRec.extraChildFeeOverride !== undefined &&
+            rateRec.extraChildFeeOverride !== null
+            ? String(rateRec.extraChildFeeOverride)
+            : ""
+        );
+      } else {
+        setSingleDateCustomPrice("");
+        setSingleDateExtraAdultPrice("");
+        setSingleDateExtraChildPrice("");
+      }
+    }
+  }, [isDrawerOpen, selectedDate, isMultiDayRange, availabilities]);
 
   // Export iCal URL
   const exportICalUrl = `https://roamigo-backend.in/api/v1/properties/${id}/calendar.ics`;
@@ -278,13 +775,24 @@ const PropertyCalendarPage = () => {
   };
 
   // Release Single Date
-  const handleReleaseSingleDate = async (item) => {
+  const handleReleaseSingleDate = async (item, targetRoomId) => {
     try {
       setActionLoading(true);
       const payload = {
-        dates: [item.dateStr || dayjs(item.date).format("YYYY-MM-DD")],
-        bookingId: item.bookingId || undefined,
-        cancelBooking: !!item.bookingId,
+        dates: [
+          item?.dateStr ||
+            (item?.date
+              ? dayjs(item.date).format("YYYY-MM-DD")
+              : selectedDate.format("YYYY-MM-DD")),
+        ],
+        roomId:
+          targetRoomId !== undefined
+            ? targetRoomId === "ALL"
+              ? undefined
+              : targetRoomId
+            : item?.roomId || undefined,
+        bookingId: item?.bookingId || undefined,
+        cancelBooking: !!item?.bookingId,
       };
       const res = await adminAPI.releasePropertyDates(id, payload);
       message.success(res.message || "Released date");
@@ -292,6 +800,72 @@ const PropertyCalendarPage = () => {
     } catch (err) {
       console.error("Error releasing date:", err);
       message.error(err.message || "Failed to release date.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Toggle block/release on an individual room for the single selected date
+  const handleToggleRoomBlock = async (roomRawName, isCurrentlyBlocked) => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    try {
+      setActionLoading(true);
+      if (isCurrentlyBlocked) {
+        await adminAPI.releasePropertyDates(id, {
+          dates: [dateStr],
+          roomId: roomRawName,
+        });
+        message.success(`Released ${roomRawName} for ${dateStr}`);
+      } else {
+        await adminAPI.blockPropertyDates(id, {
+          dates: [dateStr],
+          roomId: roomRawName,
+          reason: "Admin manual room block",
+        });
+        message.success(`Blocked ${roomRawName} for ${dateStr}`);
+      }
+      fetchData();
+    } catch (err) {
+      console.error("Error toggling room block:", err);
+      message.error(err.message || "Failed to update room availability.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBlockAllRoomsSingleDate = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    try {
+      setActionLoading(true);
+      await adminAPI.blockPropertyDates(id, {
+        dates: [dateStr],
+        reason: "Admin blocked all rooms",
+      });
+      message.success(`All rooms blocked for ${dateStr}`);
+      fetchData();
+    } catch (err) {
+      console.error("Error blocking all rooms:", err);
+      message.error(err.message || "Failed to block all rooms.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReleaseAllRoomsSingleDate = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    try {
+      setActionLoading(true);
+      await adminAPI.releasePropertyDates(id, {
+        dates: [dateStr],
+      });
+      message.success(`All rooms released for ${dateStr}`);
+      fetchData();
+    } catch (err) {
+      console.error("Error releasing all rooms:", err);
+      message.error(err.message || "Failed to release all rooms.");
     } finally {
       setActionLoading(false);
     }
@@ -306,12 +880,21 @@ const PropertyCalendarPage = () => {
     const [start, end] = releaseRange;
     try {
       setActionLoading(true);
+      const targetRooms = propertyRooms
+        .slice(0, sidebarReleaseRoomCount)
+        .map((r) => r.rawName);
       const payload = {
         startDate: start.format("YYYY-MM-DD"),
         endDate: end.format("YYYY-MM-DD"),
+        ...(sidebarReleaseRoomCount >= totalInventory
+          ? { roomId: "ALL" }
+          : { rooms: targetRooms }),
       };
       const res = await adminAPI.releasePropertyDates(id, payload);
-      message.success(res.message || "Date range released successfully!");
+      message.success(
+        res.message ||
+          `Released ${sidebarReleaseRoomCount} room(s) for selected range!`
+      );
       setReleaseRange(null);
       fetchData();
     } catch (err) {
@@ -331,13 +914,22 @@ const PropertyCalendarPage = () => {
     const [start, end] = blockRange;
     try {
       setActionLoading(true);
+      const targetRooms = propertyRooms
+        .slice(0, sidebarBlockRoomCount)
+        .map((r) => r.rawName);
       const payload = {
         startDate: start.format("YYYY-MM-DD"),
         endDate: end.format("YYYY-MM-DD"),
+        ...(sidebarBlockRoomCount >= totalInventory
+          ? { roomId: "ALL" }
+          : { rooms: targetRooms }),
         reason: blockReason || "Admin manual block",
       };
       const res = await adminAPI.blockPropertyDates(id, payload);
-      message.success(res.message || "Date range blocked successfully!");
+      message.success(
+        res.message ||
+          `Blocked ${sidebarBlockRoomCount} room(s) for selected range!`
+      );
       setBlockRange(null);
       fetchData();
     } catch (err) {
@@ -348,112 +940,457 @@ const PropertyCalendarPage = () => {
     }
   };
 
-  // Handle Date Cell Click
-  const handleDateSelect = (date, selectInfo) => {
-    setSelectedDate(date);
-    if (selectInfo?.source === "date") {
+  // Airbnb Drag-to-Select Handlers
+  const handleCellMouseDown = (current, e) => {
+    if (e.button !== 0) return; // only left click
+    isMouseDownRef.current = true;
+    dragAnchorRef.current = current;
+    isDraggingRef.current = false;
+    setIsMouseDown(true);
+    setDragAnchor(current);
+
+    if (e.shiftKey && selectedDate) {
+      const start = current.isBefore(selectedDate, "day")
+        ? current
+        : selectedDate;
+      const end = current.isBefore(selectedDate, "day")
+        ? selectedDate
+        : current;
+      setSelectionRange([start, end]);
+      setSelectedDate(start);
+      setCustomRateRange([start, end]);
+      setBlockRange([start, end]);
+      setReleaseRange([start, end]);
       setIsDrawerOpen(true);
+      return;
+    }
+
+    setSelectionRange([current, current]);
+    setSelectedDate(current);
+  };
+
+  const handleCellMouseEnter = (current) => {
+    if (!isMouseDownRef.current || !dragAnchorRef.current) return;
+    if (!current.isSame(dragAnchorRef.current, "day")) {
+      isDraggingRef.current = true;
+    }
+    const anchor = dragAnchorRef.current;
+    const start = current.isBefore(anchor, "day") ? current : anchor;
+    const end = current.isBefore(anchor, "day") ? anchor : current;
+    setSelectionRange([start, end]);
+  };
+
+  // Range Actions Handlers
+  const handleBlockSelectedRange = async () => {
+    if (!selectionRange || !selectionRange[0] || !selectionRange[1]) return;
+    try {
+      setActionLoading(true);
+      const targetRooms = propertyRooms
+        .slice(0, drawerRoomCount)
+        .map((r) => r.rawName);
+      const payload = {
+        startDate: selectionRange[0].format("YYYY-MM-DD"),
+        endDate: selectionRange[1].format("YYYY-MM-DD"),
+        ...(drawerRoomCount >= totalInventory
+          ? { roomId: "ALL" }
+          : { rooms: targetRooms }),
+        reason: blockReason || "Admin manual block",
+      };
+      const res = await adminAPI.blockPropertyDates(id, payload);
+      message.success(
+        res.message || `Blocked ${drawerRoomCount} room(s) for selected range!`
+      );
+      setIsDrawerOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("Error blocking range:", err);
+      message.error(err.message || "Failed to block date range.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  // Render Full Calendar Cell (matching reference screenshot style)
+  const handleReleaseSelectedRange = async () => {
+    if (!selectionRange || !selectionRange[0] || !selectionRange[1]) return;
+    try {
+      setActionLoading(true);
+      const targetRooms = propertyRooms
+        .slice(0, drawerRoomCount)
+        .map((r) => r.rawName);
+      const payload = {
+        startDate: selectionRange[0].format("YYYY-MM-DD"),
+        endDate: selectionRange[1].format("YYYY-MM-DD"),
+        ...(drawerRoomCount >= totalInventory
+          ? { roomId: "ALL" }
+          : { rooms: targetRooms }),
+      };
+      const res = await adminAPI.releasePropertyDates(id, payload);
+      message.success(
+        res.message || `Released ${drawerRoomCount} room(s) for selected range!`
+      );
+      setIsDrawerOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("Error releasing range:", err);
+      message.error(err.message || "Failed to release date range.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSaveRangeCustomRate = async () => {
+    if (!selectionRange || !selectionRange[0] || !selectionRange[1]) {
+      message.warning("Please select a date range on the calendar first.");
+      return;
+    }
+    const hasPrice =
+      rangeCustomPrice !== "" &&
+      rangeCustomPrice !== undefined &&
+      !isNaN(Number(rangeCustomPrice));
+    const hasExtraAdult =
+      rangeExtraAdultPrice !== "" &&
+      rangeExtraAdultPrice !== undefined &&
+      !isNaN(Number(rangeExtraAdultPrice));
+    const hasExtraChild =
+      rangeExtraChildPrice !== "" &&
+      rangeExtraChildPrice !== undefined &&
+      !isNaN(Number(rangeExtraChildPrice));
+
+    if (!hasPrice && !hasExtraAdult && !hasExtraChild) {
+      message.warning(
+        "Please enter at least one rate or fee override to save."
+      );
+      return;
+    }
+
+    const start = dayjs(selectionRange[0]);
+    const end = dayjs(selectionRange[1]);
+
+    try {
+      setActionLoading(true);
+      const payload = {
+        startDate: start.format("YYYY-MM-DD"),
+        endDate: end.format("YYYY-MM-DD"),
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        reason: "Range rate update",
+      };
+      if (hasPrice) {
+        payload.priceOverride = Number(rangeCustomPrice);
+      }
+      if (hasExtraAdult) {
+        payload.extraAdultFeeOverride = Number(rangeExtraAdultPrice);
+        payload.extraAdultFee = Number(rangeExtraAdultPrice);
+      }
+      if (hasExtraChild) {
+        payload.extraChildFeeOverride = Number(rangeExtraChildPrice);
+        payload.extraChildFee = Number(rangeExtraChildPrice);
+        payload.extraKidFeeOverride = Number(rangeExtraChildPrice);
+        payload.extraKidFee = Number(rangeExtraChildPrice);
+      }
+
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(res.message || "Rates updated for selected range!");
+      setRangeCustomPrice("");
+      setRangeExtraAdultPrice("");
+      setRangeExtraChildPrice("");
+      setIsDrawerOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("Error updating range rates:", err);
+      message.error(err.message || "Failed to update rates.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  let blockedInRangeCount = 0;
+  if (isMultiDayRange) {
+    let curr = selectionRange[0].clone();
+    const endStr = selectionRange[1].format("YYYY-MM-DD");
+    while (curr.format("YYYY-MM-DD") <= endStr) {
+      const dStr = curr.format("YYYY-MM-DD");
+      if (availabilityMap.get(dStr)?.isBlocked) {
+        blockedInRangeCount++;
+      }
+      curr = curr.add(1, "day");
+    }
+  }
+
+  // Render Full Calendar Cell (Airbnb Drag-to-Select styling)
   const fullCellRender = (current, info) => {
     if (info.type !== "date") return info.originNode;
 
     const dateStr = current.format("YYYY-MM-DD");
     const isToday = current.isSame(dayjs(), "day");
-    const isSelected = selectedDate && current.isSame(selectedDate, "day");
 
-    const availability = availabilityMap.get(dateStr);
-    const isBlocked = availability?.isBlocked;
-    const isBooking =
-      availability?.source === "BOOKING" || !!availability?.bookingId;
-    const isICal = availability?.source === "ICAL_SYNC";
-    const hasOverride =
-      availability &&
-      typeof availability.priceOverride === "number" &&
-      availability.priceOverride > 0;
+    const hasRange = selectionRange && selectionRange[0] && selectionRange[1];
+    const startStr = hasRange ? selectionRange[0].format("YYYY-MM-DD") : null;
+    const endStr = hasRange ? selectionRange[1].format("YYYY-MM-DD") : null;
 
+    const isRangeStart = hasRange && dateStr === startStr;
+    const isRangeEnd = hasRange && dateStr === endStr;
+    const isInRange = hasRange && dateStr >= startStr && dateStr <= endStr;
+    const isMultiDay = hasRange && startStr !== endStr;
+    const isSingleSelected =
+      (!hasRange || !isMultiDay) &&
+      selectedDate &&
+      current.isSame(selectedDate, "day");
+
+    const dayRecords = getRecordsForDate(dateStr);
+    const isGlobalBlocked = isGloballyBlocked(dateStr);
+    const blockedRooms = getBlockedRoomsList(dateStr);
+    const totalRoomsCount = totalInventory;
+    const usedRoomsCount = getUsedRoomsCount(dateStr);
+    const areAllRoomsBlocked =
+      isGlobalBlocked ||
+      (totalRoomsCount > 0 && usedRoomsCount >= totalRoomsCount);
+    const isPartiallyBlocked =
+      totalRoomsCount > 0 &&
+      usedRoomsCount > 0 &&
+      usedRoomsCount < totalRoomsCount &&
+      !isGlobalBlocked;
+
+    const isBooking = dayRecords.some(
+      (r) => r.source === "BOOKING" || !!r.bookingId
+    );
+    const isICal = dayRecords.some((r) => r.source === "ICAL_SYNC");
+    const hasOverride = dayRecords.some(
+      (r) =>
+        (typeof r.priceOverride === "number" && r.priceOverride > 0) ||
+        (typeof r.extraAdultFeeOverride === "number" &&
+          r.extraAdultFeeOverride > 0) ||
+        (typeof r.extraChildFeeOverride === "number" &&
+          r.extraChildFeeOverride > 0)
+    );
+
+    const priceOverrideItem = dayRecords.find(
+      (r) => typeof r.priceOverride === "number" && r.priceOverride > 0
+    );
     const dailyPrice =
-      availability?.priceOverride || property?.pricePerNight || 0;
+      priceOverrideItem?.priceOverride || property?.pricePerNight || 0;
     const priceText = formatPriceK(dailyPrice);
+
+    const adultFeeItem = dayRecords.find(
+      (r) =>
+        typeof r.extraAdultFeeOverride === "number" &&
+        r.extraAdultFeeOverride >= 0
+    );
+    const childFeeItem = dayRecords.find(
+      (r) =>
+        typeof r.extraChildFeeOverride === "number" &&
+        r.extraChildFeeOverride >= 0
+    );
+
+    const cellAdultFee =
+      adultFeeItem?.extraAdultFeeOverride !== undefined
+        ? adultFeeItem.extraAdultFeeOverride
+        : property?.extraAdultFee ?? 0;
+
+    const cellChildFee =
+      childFeeItem?.extraChildFeeOverride !== undefined
+        ? childFeeItem.extraChildFeeOverride
+        : property?.extraChildFee ?? 0;
+
+    const hasCustomAdultFeeCell =
+      adultFeeItem?.extraAdultFeeOverride !== undefined;
+    const hasCustomChildFeeCell =
+      childFeeItem?.extraChildFeeOverride !== undefined;
 
     return (
       <div
-        onClick={() => handleDateSelect(current)}
-        className={`h-full w-full p-1.5 flex flex-col justify-between rounded-2xl transition-all border cursor-pointer select-none min-h-[90px] ${
-          isBlocked
-            ? "bg-slate-100/90 border-slate-200 text-slate-400"
-            : isSelected
-            ? "bg-amber-500/10 border-amber-500 text-slate-900 shadow-sm"
-            : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900"
+        onMouseDown={(e) => handleCellMouseDown(current, e)}
+        onMouseEnter={() => handleCellMouseEnter(current)}
+        onClick={() => handleSelectDate(current)}
+        className={`h-full w-full p-1.5 flex flex-col shrink-0 justify-between transition-all border cursor-pointer select-none min-h-[90px] ${
+          isMultiDay && isInRange
+            ? isRangeStart
+              ? "bg-amber-500/20 border-amber-500 border-2 rounded-l-2xl rounded-r-none z-10 shadow-sm"
+              : isRangeEnd
+              ? "bg-amber-500/20 border-amber-500 border-2 rounded-r-2xl rounded-l-none z-10 shadow-sm"
+              : "bg-amber-500/15 border-y-2 border-amber-400 border-x-0 rounded-none"
+            : isSingleSelected || (isRangeStart && !isMultiDay)
+            ? "bg-amber-500/15 border-2 border-amber-500 text-slate-900 shadow-sm rounded-2xl"
+            : areAllRoomsBlocked
+            ? "bg-slate-100/90 border-slate-200 text-slate-400 rounded-2xl"
+            : isPartiallyBlocked
+            ? "bg-amber-50/60 border-amber-300/80 hover:border-amber-400 hover:shadow-xs text-slate-900 rounded-2xl"
+            : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900 rounded-2xl"
         }`}
       >
-        {/* Top Bar: Date Number Badge */}
-        <div className="flex items-center justify-between">
-          <span
-            className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
-              isToday
-                ? "bg-rose-500 text-white shadow-xs"
-                : isBlocked
-                ? "line-through text-slate-400 font-semibold"
-                : "text-slate-900 font-bold"
-            }`}
-          >
-            {current.date()}
-          </span>
+        {/* Top Bar: Date Number Badge & Range Markers */}
+        <div className="flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
+                isRangeStart || isRangeEnd
+                  ? "bg-amber-600 text-white shadow-xs font-black"
+                  : isToday
+                  ? "bg-rose-500 text-white shadow-xs"
+                  : isInRange
+                  ? "text-amber-950 font-black bg-amber-200/80"
+                  : areAllRoomsBlocked
+                  ? "line-through text-slate-400 font-semibold"
+                  : "text-slate-900 font-bold"
+              }`}
+            >
+              {current.date()}
+            </span>
+
+            {isRangeStart && isMultiDay && (
+              <span className="text-[9px] font-extrabold text-amber-900 bg-amber-200/90 px-1.5 py-0.5 rounded-md border border-amber-300">
+                Start
+              </span>
+            )}
+            {isRangeEnd && isMultiDay && (
+              <span className="text-[9px] font-extrabold text-amber-900 bg-amber-200/90 px-1.5 py-0.5 rounded-md border border-amber-300">
+                End
+              </span>
+            )}
+          </div>
 
           {/* Badges */}
-          {isBooking && (
-            <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <User className="w-2.5 h-2.5" />
-              <span>Booked</span>
-            </span>
-          )}
-          {isICal && !isBooking && (
-            <span className="bg-sky-100 text-sky-800 border border-sky-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Globe className="w-2.5 h-2.5" />
-              <span>iCal</span>
-            </span>
-          )}
-          {hasOverride && !isBlocked && !isBooking && !isICal && (
-            <span
-              className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
-              title="Custom Rate Override"
-            >
-              <DollarSign className="w-2.5 h-2.5" />
-              <span>Custom</span>
-            </span>
-          )}
-          {isBlocked && !isBooking && !isICal && (
-            <span className="bg-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Lock className="w-2.5 h-2.5" />
-              <span>Blocked</span>
-            </span>
-          )}
+          <div className="flex items-center gap-1 flex-wrap justify-end">
+            {totalRoomsCount > 0 && (
+              <span
+                className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border ${
+                  usedRoomsCount >= totalRoomsCount
+                    ? "bg-rose-100 text-rose-800 border-rose-300"
+                    : usedRoomsCount > 0
+                    ? "bg-amber-100 text-amber-900 border-amber-300"
+                    : "bg-slate-100 text-slate-600 border-slate-200"
+                }`}
+                title={`${usedRoomsCount} of ${totalRoomsCount} rooms used`}
+              >
+                <BedDouble className="w-2.5 h-2.5" />
+                <span>
+                  {usedRoomsCount}/{totalRoomsCount} Used
+                </span>
+              </span>
+            )}
+
+            {isBooking && (
+              <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <User className="w-2.5 h-2.5" />
+                <span>Booked</span>
+              </span>
+            )}
+            {isICal && !isBooking && (
+              <span className="bg-sky-100 text-sky-800 border border-sky-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <Globe className="w-2.5 h-2.5" />
+                <span>iCal</span>
+              </span>
+            )}
+            {hasOverride && !areAllRoomsBlocked && !isBooking && !isICal && (
+              <span
+                className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+                title="Custom Rate Override"
+              >
+                <DollarSign className="w-2.5 h-2.5" />
+                {/* <span>Custom</span> */}
+              </span>
+            )}
+            {areAllRoomsBlocked && !isBooking && !isICal && (
+              <span className="bg-slate-200 text-slate-600 text-[9px] font-normal px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                <Lock className="w-2.5 h-2.5" />
+                <span>{isRoomBased ? "All Blocked" : "Blocked"}</span>
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Bottom Bar: Daily Nightly Price */}
-        <div className="mt-2 text-center">
+        {/* Bottom Bar: Daily Nightly Price & Guest Fees */}
+        <div className="mt-1.5 text-center">
           <span
             className={`text-xs font-extrabold font-mono tracking-tight block ${
-              isBlocked ? "text-slate-400 opacity-70" : "text-slate-900"
+              areAllRoomsBlocked
+                ? "text-slate-400 opacity-70"
+                : "text-slate-900"
             }`}
           >
             {priceText}
           </span>
-          {availability?.notes && (
-            <span className="text-[9px] text-slate-400 block truncate max-w-full font-medium">
-              {availability.notes}
-            </span>
-          )}
         </div>
+        {/*<div className="flex items-center justify-center gap-1">
+            <span
+              className={`text-[7px] px-1.5 py-0.5 rounded-md font-normal transition-all ${
+                hasCustomAdultFeeCell
+                  ? "bg-indigo-100 text-indigo-700 border border-indigo-300 shadow-2xs"
+                  : "bg-emerald-50 text-emerald-800 border border-emerald-200/70"
+              }`}
+              title={`Extra Adult Fee: ₹${cellAdultFee} ${
+                hasCustomAdultFeeCell
+                  ? "(Custom Date Override)"
+                  : "(Property Base Fee)"
+              }`}
+            >
+              A-₹{cellAdultFee}
+            </span>
+            <span
+              className={`text-[7px] px-1.5 py-0.5 rounded-md font-normal transition-all ${
+                hasCustomChildFeeCell
+                  ? "bg-indigo-100 text-indigo-900 border border-indigo-300 shadow-2xs"
+                  : "bg-purple-50 text-purple-800 border border-purple-200/70"
+              }`}
+              title={`Extra Kid Fee: ₹${cellChildFee} ${
+                hasCustomChildFeeCell
+                  ? "(Custom Date Override)"
+                  : "(Property Base Fee)"
+              }`}
+            >
+              K-₹{cellChildFee}
+            </span>
+          </div> */}
+        {/* {dayRecords[0]?.notes && (
+            <span className="text-[9px] text-slate-400 block truncate max-w-full font-medium mt-0.5">
+              {dayRecords[0].notes}
+            </span>
+          )} */}
+        {/* </div> */}
       </div>
     );
   };
 
   const selectedDateStr = selectedDate ? selectedDate.format("YYYY-MM-DD") : "";
   const selectedAvailability = availabilityMap.get(selectedDateStr);
+  const selectedDateRecords = getRecordsForDate(selectedDateStr);
+  const selectedRateRecord =
+    selectedDateRecords.find(
+      (r) =>
+        (r.priceOverride !== undefined && r.priceOverride !== null) ||
+        (r.extraAdultFeeOverride !== undefined &&
+          r.extraAdultFeeOverride !== null) ||
+        (r.extraChildFeeOverride !== undefined &&
+          r.extraChildFeeOverride !== null)
+    ) ||
+    selectedDateRecords.find((r) => !r.roomId || r.roomId === "ALL") ||
+    selectedAvailability;
+
+  const customNightlyPrice = selectedRateRecord?.priceOverride;
+  const hasCustomPrice =
+    customNightlyPrice !== undefined &&
+    customNightlyPrice !== null &&
+    !isNaN(Number(customNightlyPrice));
+  const effectiveNightlyPrice = hasCustomPrice
+    ? Number(customNightlyPrice)
+    : property?.pricePerNight || 0;
+
+  const customAdultFee = selectedRateRecord?.extraAdultFeeOverride;
+  const hasCustomAdultFee =
+    customAdultFee !== undefined &&
+    customAdultFee !== null &&
+    !isNaN(Number(customAdultFee));
+  const effectiveAdultFee = hasCustomAdultFee
+    ? Number(customAdultFee)
+    : property?.extraAdultFee ?? 0;
+
+  const customChildFee = selectedRateRecord?.extraChildFeeOverride;
+  const hasCustomChildFee =
+    customChildFee !== undefined &&
+    customChildFee !== null &&
+    !isNaN(Number(customChildFee));
+  const effectiveChildFee = hasCustomChildFee
+    ? Number(customChildFee)
+    : property?.extraChildFee ?? 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-380 mx-auto space-y-6 font-sans">
@@ -469,13 +1406,38 @@ const PropertyCalendarPage = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 {property?.title || "Property Calendar"}
               </h1>
               <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold px-2.5 py-0.5 rounded-full">
                 ₹{property?.pricePerNight?.toLocaleString("en-IN") || 0} / night
               </span>
+              <span className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <BedDouble className="w-3.5 h-3.5 text-blue-600" />
+                <span>
+                  Total Inventory: {totalInventory}{" "}
+                  {totalInventory === 1 ? "Room" : "Rooms"}
+                </span>
+              </span>
+              {/* <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <User className="w-3 h-3 text-emerald-600" />
+                <span>
+                  Extra Adult: ₹
+                  {property?.extraAdultFee?.toLocaleString("en-IN") || 0}
+                </span>
+              </span>
+              <span className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <User className="w-3 h-3 text-purple-600" />
+                <span>
+                  Extra Kid: ₹
+                  {property?.extraChildFee?.toLocaleString("en-IN") || 0}
+                </span>
+              </span>
+              <span className="bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                Base Guests: {property?.baseGuests || 2} (Max:{" "}
+                {property?.guestsMax || 2})
+              </span> */}
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
               <span>
@@ -501,87 +1463,115 @@ const PropertyCalendarPage = () => {
       </div>
 
       {/* 2. Top Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-bold">
-            <Lock className="w-5 h-5" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="bg-white border border-slate-200 rounded-3xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold shrink-0">
+            <BedDouble className="w-4 h-4" />
           </div>
-          <div>
-            <span className="text-xs text-slate-500 font-medium block">
-              Total Blocked Nights
+          <div className="min-w-0">
+            <span className="text-[11px] text-slate-500 font-medium block truncate">
+              Inventory
             </span>
-            <span className="text-lg font-bold text-slate-900 font-mono">
+            <span className="text-base font-bold text-slate-900 font-mono">
+              {totalInventory} {totalInventory === 1 ? "Room" : "Rooms"}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-3xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-bold shrink-0">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[11px] text-slate-500 font-medium block truncate">
+              Blocked Nights
+            </span>
+            <span className="text-base font-bold text-slate-900 font-mono">
               {availabilities.length}
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center font-bold">
-            <Globe className="w-5 h-5" />
+        <div className="bg-white border border-slate-200 rounded-3xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold shrink-0">
+            <Sparkles className="w-4 h-4" />
           </div>
-          <div>
-            <span className="text-xs text-slate-500 font-medium block">
-              iCal Feeds Synced
+          <div className="min-w-0">
+            <span className="text-[11px] text-slate-500 font-medium block truncate">
+              Base Nightly
             </span>
-            <span className="text-lg font-bold text-slate-900 font-mono">
-              {icalFeeds.length} Feeds
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-medium block">
-              Base Price / Night
-            </span>
-            <span className="text-lg font-bold text-slate-900 font-mono">
+            <span className="text-base font-bold text-slate-900 font-mono">
               ₹{property?.pricePerNight?.toLocaleString("en-IN") || 0}
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-3xl p-4 flex items-center gap-3 shadow-xs">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center font-bold">
-            <Clock className="w-5 h-5" />
+        <div className="bg-white border border-slate-200 rounded-3xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-9 h-9 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center font-bold shrink-0">
+            <Globe className="w-4 h-4" />
           </div>
-          <div>
-            <span className="text-xs text-slate-500 font-medium block">
-              Auto-Sync Status
+          <div className="min-w-0">
+            <span className="text-[11px] text-slate-500 font-medium block truncate">
+              iCal Sync
             </span>
-            <span className="text-xs font-bold text-emerald-600 block">
-              Every 30 mins (Active)
+            <span className="text-base font-bold text-slate-900 font-mono">
+              {icalFeeds.length} Feeds
             </span>
           </div>
         </div>
       </div>
 
-      {/* 3. Dates & Custom Rates Drawer (Dynamic Host Pricing) */}
+      {/* 3. Dates & Custom Rates Drawer (Dynamic Host Pricing & Room Controls) */}
       <div className="bg-white border border-blue-100 bg-[#fbfdff] rounded-3xl p-5 space-y-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100/60 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-100/60 pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span>Dates & Custom Rates Drawer (Dynamic Host Pricing)</span>
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              <span>Dates & Custom Rates &amp; Room Block Controls</span>
             </h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Set weekend surcharges or custom rates filtered by day of the week (e.g. Fri & Sat).
+              Set custom rates or quickly block/release specific rooms or all
+              rooms across dates.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleUpdateCustomRates}
-            disabled={actionLoading || !customRateRange}
-            className="px-5 py-2.5 bg-[#1849C7] hover:bg-blue-800 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-sm shrink-0"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Apply Custom Rates</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTopBlockDates}
+              disabled={actionLoading}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
+              title={`Block ${topRoomCount} room(s) for selected dates`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>
+                Block {topRoomCount} {topRoomCount === 1 ? "Room" : "Rooms"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={handleTopReleaseDates}
+              disabled={actionLoading}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
+              title={`Release ${topRoomCount} room(s) for selected dates`}
+            >
+              <Unlock className="w-3.5 h-3.5" />
+              <span>
+                Release {topRoomCount} {topRoomCount === 1 ? "Room" : "Rooms"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={handleUpdateCustomRates}
+              disabled={actionLoading}
+              className="px-4 py-2 bg-[#1849C7] hover:bg-blue-800 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-sm shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Apply Custom Rates</span>
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
           {/* Range Picker */}
           <div className="space-y-1 sm:col-span-2">
             <label className="text-[10px] font-bold uppercase text-slate-500">
@@ -594,6 +1584,49 @@ const PropertyCalendarPage = () => {
               className="w-full rounded-2xl text-xs py-2"
               placeholder={["Start Date", "End Date"]}
             />
+          </div>
+
+          {/* Room Count Stepper (No dropdowns) */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
+                <BedDouble className="w-3 h-3 text-amber-600" />
+                ROOM COUNT
+              </label>
+              <span className="text-[10px] font-bold text-slate-500">
+                Total: {totalInventory}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl p-1">
+              <button
+                type="button"
+                onClick={() => setTopRoomCount((prev) => Math.max(1, prev - 1))}
+                disabled={topRoomCount <= 1}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all"
+                title="Decrease room count"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <div className="flex-1 text-center font-bold text-xs text-slate-800">
+                {topRoomCount} {topRoomCount === 1 ? "Room" : "Rooms"}
+                {topRoomCount >= totalInventory && (
+                  <span className="ml-1 text-[10px] text-amber-600 font-extrabold">
+                    (All)
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setTopRoomCount((prev) => Math.min(totalInventory, prev + 1))
+                }
+                disabled={topRoomCount >= totalInventory}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all"
+                title="Increase room count"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Custom Rate Input */}
@@ -666,7 +1699,7 @@ const PropertyCalendarPage = () => {
       </div>
 
       {/* 4. Main Full-Page Calendar + iCal Sync Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
         {/* Left 2 Cols: Full Ant Design Calendar */}
         <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -702,7 +1735,55 @@ const PropertyCalendarPage = () => {
               </p>
             </div>
           ) : (
-            <div className="custom-full-calendar">
+            <div className="custom-full-calendar select-none">
+              {/* Airbnb Style Drag Range Selection Banner */}
+              {isMultiDayRange && (
+                <div className="bg-amber-50 border border-amber-300/80 rounded-2xl p-3.5 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-xs">
+                      {nightsCount}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span>
+                          {selectionRange[0].format("DD MMM YYYY")} &ndash;{" "}
+                          {selectionRange[1].format("DD MMM YYYY")}
+                        </span>
+                        <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                          {nightsCount} Nights Selected
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Airbnb drag-select active. Drag across calendar to
+                        re-select, or manage dates on the right.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsDrawerOpen(true)}
+                      className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Manage {nightsCount} Nights</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectionRange(null);
+                        setDragAnchor(null);
+                      }}
+                      className="p-2 text-slate-400 hover:text-slate-700 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl transition-all cursor-pointer"
+                      title="Clear selection"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <AntCalendar
                 headerRender={({ value, type, onChange, onTypeChange }) => {
                   const current = value.clone();
@@ -787,7 +1868,9 @@ const PropertyCalendarPage = () => {
                   );
                 }}
                 fullCellRender={fullCellRender}
-                onSelect={handleDateSelect}
+                onSelect={(date) => {
+                  handleSelectDate(date);
+                }}
               />
             </div>
           )}
@@ -804,26 +1887,69 @@ const PropertyCalendarPage = () => {
                   <Unlock className="w-4 h-4 text-emerald-600" />
                   <span>Release Date Range</span>
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">
-                  Unlock Calendar
+                <span className="text-[10px] text-slate-500 font-bold">
+                  Total: {totalInventory} Rooms
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <RangePicker
-                  value={releaseRange}
-                  onChange={setReleaseRange}
-                  format="YYYY-MM-DD"
-                  className="w-full rounded-2xl text-xs py-2"
-                  placeholder={["Start Date", "End Date"]}
-                />
-                <button
-                  type="button"
-                  onClick={handleReleaseRange}
-                  disabled={actionLoading || !releaseRange}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
-                >
-                  <span>Release</span>
-                </button>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-1.5 px-3">
+                  <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                    <BedDouble className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Rooms:</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSidebarReleaseRoomCount((prev) =>
+                          Math.max(1, prev - 1)
+                        )
+                      }
+                      disabled={sidebarReleaseRoomCount <= 1}
+                      className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 disabled:opacity-40 border border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                      title="Decrease room count"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="font-bold text-xs text-slate-800 min-w-16 text-center">
+                      {sidebarReleaseRoomCount}{" "}
+                      {sidebarReleaseRoomCount === 1 ? "Room" : "Rooms"}
+                      {sidebarReleaseRoomCount >= totalInventory
+                        ? " (All)"
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSidebarReleaseRoomCount((prev) =>
+                          Math.min(totalInventory, prev + 1)
+                        )
+                      }
+                      disabled={sidebarReleaseRoomCount >= totalInventory}
+                      className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 disabled:opacity-40 border border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                      title="Increase room count"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RangePicker
+                    value={releaseRange}
+                    onChange={setReleaseRange}
+                    format="YYYY-MM-DD"
+                    className="w-full rounded-2xl text-xs py-2"
+                    placeholder={["Start Date", "End Date"]}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleReleaseRange}
+                    disabled={actionLoading || !releaseRange}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
+                  >
+                    <span>Release</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -834,26 +1960,67 @@ const PropertyCalendarPage = () => {
                   <Lock className="w-4 h-4 text-amber-600" />
                   <span>Block Custom Dates</span>
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">
-                  Maintenance / Private
+                <span className="text-[10px] text-slate-500 font-bold">
+                  Total: {totalInventory} Rooms
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <RangePicker
-                  value={blockRange}
-                  onChange={setBlockRange}
-                  format="YYYY-MM-DD"
-                  className="w-full rounded-2xl text-xs py-2"
-                  placeholder={["Start Date", "End Date"]}
-                />
-                <button
-                  type="button"
-                  onClick={handleBlockRange}
-                  disabled={actionLoading || !blockRange}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
-                >
-                  <span>Block</span>
-                </button>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-1.5 px-3">
+                  <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                    <BedDouble className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Rooms:</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSidebarBlockRoomCount((prev) =>
+                          Math.max(1, prev - 1)
+                        )
+                      }
+                      disabled={sidebarBlockRoomCount <= 1}
+                      className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 disabled:opacity-40 border border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                      title="Decrease room count"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="font-bold text-xs text-slate-800 min-w-16 text-center">
+                      {sidebarBlockRoomCount}{" "}
+                      {sidebarBlockRoomCount === 1 ? "Room" : "Rooms"}
+                      {sidebarBlockRoomCount >= totalInventory ? " (All)" : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSidebarBlockRoomCount((prev) =>
+                          Math.min(totalInventory, prev + 1)
+                        )
+                      }
+                      disabled={sidebarBlockRoomCount >= totalInventory}
+                      className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 disabled:opacity-40 border border-slate-200 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                      title="Increase room count"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RangePicker
+                    value={blockRange}
+                    onChange={setBlockRange}
+                    format="YYYY-MM-DD"
+                    className="w-full rounded-2xl text-xs py-2"
+                    placeholder={["Start Date", "End Date"]}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleBlockRange}
+                    disabled={actionLoading || !blockRange}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-2xl text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all shrink-0 shadow-xs"
+                  >
+                    <span>Block</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1022,139 +2189,750 @@ const PropertyCalendarPage = () => {
         </div>
       </div>
 
-      {/* 5. Selected Date Action Drawer */}
+      {/* 5. Selected Date / Range Action Drawer */}
       <Drawer
         title={
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-amber-600" />
             <span>
-              Date Actions:{" "}
-              {selectedDate ? selectedDate.format("ddd, DD MMMM YYYY") : ""}
+              {isMultiDayRange
+                ? `Range Actions: ${selectionRange[0].format(
+                    "DD MMM"
+                  )} – ${selectionRange[1].format(
+                    "DD MMM YYYY"
+                  )} (${nightsCount} Nights)`
+                : `Date Actions: ${
+                    selectedDate ? selectedDate.format("ddd, DD MMMM YYYY") : ""
+                  }`}
             </span>
           </div>
         }
         placement="right"
-        width={420}
+        width={440}
         onClose={() => setIsDrawerOpen(false)}
         open={isDrawerOpen}
         className="custom-admin-drawer"
       >
         <div className="space-y-6 font-sans text-xs text-slate-700">
-          {/* Status Details */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 text-sm">
-                Status Overview
-              </span>
-              {selectedAvailability?.isBlocked ? (
-                <span className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  <span>Unavailable / Blocked</span>
-                </span>
-              ) : (
-                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  <span>Available for booking</span>
-                </span>
-              )}
-            </div>
+          {/* If Multi-Day Range is Selected */}
+          {isMultiDayRange ? (
+            <>
+              {/* Status Details for Range */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-sm">
+                    Selected Range Overview
+                  </span>
+                  <span className="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <CalendarIcon className="w-3.5 h-3.5" />
+                    <span>{nightsCount} Nights</span>
+                  </span>
+                </div>
 
-            <div className="space-y-1.5 border-t border-slate-200 pt-3">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Daily Nightly Rate:</span>
-                <span className="font-bold text-slate-900 font-mono text-sm">
-                  {formatPriceK(
-                    selectedAvailability?.priceOverride ||
-                      property?.pricePerNight ||
-                      0
-                  )}
-                </span>
+                <div className="space-y-2 border-t border-slate-200 pt-3">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Dates:</span>
+                    <span className="font-bold text-slate-900">
+                      {selectionRange[0].format("DD MMM YYYY")} &ndash;{" "}
+                      {selectionRange[1].format("DD MMM YYYY")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Base Nightly Rate:</span>
+                    <span className="font-bold text-slate-900 font-mono text-sm">
+                      ₹{property?.pricePerNight?.toLocaleString("en-IN") || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Base Adult Fee:</span>
+                    <span className="font-bold text-slate-900 font-mono text-xs">
+                      ₹{property?.extraAdultFee?.toLocaleString("en-IN") || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Base Kid Fee:</span>
+                    <span className="font-bold text-slate-900 font-mono text-xs">
+                      ₹{property?.extraChildFee?.toLocaleString("en-IN") || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Currently Blocked:</span>
+                    <span className="font-bold text-slate-800">
+                      {blockedInRangeCount} of {nightsCount} nights
+                    </span>
+                  </div>
+                </div>
               </div>
-              {selectedAvailability?.source && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Block Source:</span>
-                  <span className="font-bold text-slate-800">
-                    {selectedAvailability.source}
-                  </span>
-                </div>
-              )}
-              {selectedAvailability?.notes && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Block Reason / Notes:</span>
-                  <span className="font-bold text-slate-800">
-                    {selectedAvailability.notes}
-                  </span>
-                </div>
-              )}
-              {selectedAvailability?.booking?.bookingCode && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Booking Reference:</span>
-                  <span className="font-bold text-amber-700 font-mono">
-                    #{selectedAvailability.booking.bookingCode}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="space-y-4">
-            <h4 className="font-bold text-slate-900 text-sm">Quick Actions</h4>
+              {/* Room Stepper for Range Actions */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
+                    <BedDouble className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Target Rooms for Range Actions</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Total: {totalInventory} Rooms
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-1.5 px-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDrawerRoomCount((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={drawerRoomCount <= 1}
+                    className="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                    title="Decrease room count"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="flex-1 text-center font-bold text-xs text-slate-800">
+                    {drawerRoomCount} {drawerRoomCount === 1 ? "Room" : "Rooms"}
+                    {drawerRoomCount >= totalInventory && (
+                      <span className="ml-1 text-[10px] text-amber-600 font-extrabold">
+                        (All Rooms)
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDrawerRoomCount((prev) =>
+                        Math.min(totalInventory, prev + 1)
+                      )
+                    }
+                    disabled={drawerRoomCount >= totalInventory}
+                    className="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                    title="Increase room count"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
 
-            {/* Set Custom Price for Selected Date */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
-              <span className="font-bold text-slate-900 block text-xs">
-                Set Custom Rate for{" "}
-                {selectedDate ? selectedDate.format("DD MMM") : ""}
-              </span>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  placeholder={`Base: ₹${property?.pricePerNight || 0}`}
-                  value={singleDateCustomPrice}
-                  onChange={(e) => setSingleDateCustomPrice(e.target.value)}
-                  className="rounded-xl text-xs py-2 font-mono font-bold"
-                />
+              {/* Quick Range Actions */}
+              <div className="space-y-4">
+                <h4 className="font-bold text-slate-900 text-sm">
+                  Range Actions
+                </h4>
+
+                {/* Set Custom Price for Selected Range */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
+                  <span className="font-bold text-slate-900 block text-xs">
+                    Set Nightly Rate &amp; Guest Fees ({nightsCount} Nights)
+                  </span>
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                        Nightly Price Override (₹)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder={`Base: ₹${property?.pricePerNight || 0}`}
+                        value={rangeCustomPrice}
+                        onChange={(e) => setRangeCustomPrice(e.target.value)}
+                        className="rounded-xl text-xs py-2 font-mono font-bold"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                          Extra Adult Fee (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder={`Base: ₹${property?.extraAdultFee || 0}`}
+                          value={rangeExtraAdultPrice}
+                          onChange={(e) =>
+                            setRangeExtraAdultPrice(e.target.value)
+                          }
+                          className="rounded-xl text-xs py-1.5 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                          Extra Kid Fee (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder={`Base: ₹${property?.extraChildFee || 0}`}
+                          value={rangeExtraChildPrice}
+                          onChange={(e) =>
+                            setRangeExtraChildPrice(e.target.value)
+                          }
+                          className="rounded-xl text-xs py-1.5 font-mono"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSaveRangeCustomRate}
+                      disabled={actionLoading}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Save Range Rates &amp; Guest Fees</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Block Range */}
                 <button
                   type="button"
-                  onClick={handleSaveSingleDateCustomRate}
-                  disabled={actionLoading || !singleDateCustomPrice}
-                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0"
+                  onClick={handleBlockSelectedRange}
+                  disabled={actionLoading}
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
                 >
-                  Save Rate
+                  <Lock className="w-4 h-4" />
+                  <span>
+                    Block {drawerRoomCount}{" "}
+                    {drawerRoomCount === 1 ? "Room" : "Rooms"} for All{" "}
+                    {nightsCount} Selected Nights
+                  </span>
+                </button>
+
+                {/* Release Range */}
+                <button
+                  type="button"
+                  onClick={handleReleaseSelectedRange}
+                  disabled={actionLoading}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
+                >
+                  <Unlock className="w-4 h-4" />
+                  <span>
+                    Release / Unlock {drawerRoomCount}{" "}
+                    {drawerRoomCount === 1 ? "Room" : "Rooms"} for All{" "}
+                    {nightsCount} Nights
+                  </span>
                 </button>
               </div>
-            </div>
+            </>
+          ) : (
+            <>
+              {/* Single Date Status Details */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-900 text-sm block">
+                      Status Overview
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {selectedDate
+                        ? selectedDate.format("dddd, DD MMMM YYYY")
+                        : ""}
+                    </span>
+                  </div>
+                  {isGloballyBlocked(selectedDateStr) ? (
+                    <span className="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Lock className="w-3 h-3" />
+                      <span>Globally Blocked</span>
+                    </span>
+                  ) : totalInventory > 0 &&
+                    getUsedRoomsCount(selectedDateStr) > 0 ? (
+                    <span className="bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <BedDouble className="w-3 h-3 text-amber-600" />
+                      <span>
+                        {getUsedRoomsCount(selectedDateStr)}/{totalInventory}{" "}
+                        Rooms Used
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      <span>All {totalInventory} Rooms Available</span>
+                    </span>
+                  )}
+                </div>
 
-            {selectedAvailability?.isBlocked ? (
-              <button
-                type="button"
-                onClick={() => {
-                  handleReleaseSingleDate(selectedAvailability);
-                  setIsDrawerOpen(false);
-                }}
-                disabled={actionLoading}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
-              >
-                <Unlock className="w-4 h-4" />
-                <span>Release Date (Unlock for booking)</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setBlockRange([selectedDate, selectedDate]);
-                  handleBlockRange();
-                  setIsDrawerOpen(false);
-                }}
-                disabled={actionLoading}
-                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
-              >
-                <Lock className="w-4 h-4" />
-                <span>Block This Date</span>
-              </button>
-            )}
-          </div>
+                {/* Custom Rates & Fees Active Alert Badge */}
+                {hasCustomPrice || hasCustomAdultFee || hasCustomChildFee ? (
+                  <div className="bg-indigo-50 border border-indigo-200/90 rounded-2xl p-3.5 space-y-2 shadow-2xs">
+                    <div className="flex items-center gap-2">
+                      {/* <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" /> */}
+                      <span className="font-bold text-xs text-indigo-950">
+                        Custom Overrides Active on{" "}
+                        {selectedDate
+                          ? selectedDate.format("DD MMM")
+                          : "this Date"}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 text-xs text-indigo-900 font-medium pl-6">
+                      {hasCustomPrice && (
+                        <div className="flex items-center justify-between">
+                          <span>Nightly Price Changed:</span>
+                          <span className="font-bold font-mono text-indigo-950">
+                            ₹
+                            {Number(customNightlyPrice).toLocaleString("en-IN")}
+                            <span className="text-[10px] text-indigo-600 font-normal ml-1">
+                              (Base: ₹
+                              {property?.pricePerNight?.toLocaleString(
+                                "en-IN"
+                              ) || 0}
+                              )
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                      {hasCustomAdultFee && (
+                        <div className="flex items-center justify-between">
+                          <span>Extra Adult Fee Changed:</span>
+                          <span className="font-bold font-mono text-indigo-950">
+                            ₹{Number(customAdultFee).toLocaleString("en-IN")}
+                            <span className="text-[10px] text-indigo-600 font-normal ml-1">
+                              (Base: ₹
+                              {(property?.extraAdultFee ?? 0).toLocaleString(
+                                "en-IN"
+                              )}
+                              )
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                      {hasCustomChildFee && (
+                        <div className="flex items-center justify-between">
+                          <span>Extra Kid Fee Changed:</span>
+                          <span className="font-bold font-mono text-indigo-950">
+                            ₹{Number(customChildFee).toLocaleString("en-IN")}
+                            <span className="text-[10px] text-indigo-600 font-normal ml-1">
+                              (Base: ₹
+                              {(property?.extraChildFee ?? 0).toLocaleString(
+                                "en-IN"
+                              )}
+                              )
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-100/80 border border-slate-200 rounded-2xl p-3 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Standard Property Base Rates &amp; Fees apply</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                      No Overrides
+                    </span>
+                  </div>
+                )}
+
+                {/* Pricing & Fees Breakdown Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
+                    Daily Rates &amp; Guest Fees
+                  </span>
+
+                  {/* Daily Nightly Rate */}
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-600 font-medium">
+                      Daily Nightly Rate:
+                    </span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 font-mono text-sm">
+                        ₹{effectiveNightlyPrice.toLocaleString("en-IN")}
+                      </span>
+                      {hasCustomPrice ? (
+                        <span className="text-[9.5px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded-md">
+                          Custom Override
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                          Base Rate
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Extra Adult Fee */}
+                  <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-2">
+                    <span className="text-slate-600 font-medium">
+                      Extra Adult Fee:
+                    </span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 font-mono">
+                        ₹{Number(effectiveAdultFee).toLocaleString("en-IN")} /
+                        adult
+                      </span>
+                      {hasCustomAdultFee ? (
+                        <span className="text-[9.5px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 px-1.5 py-0.5 rounded-md">
+                          Custom (Base: ₹
+                          {(property?.extraAdultFee ?? 0).toLocaleString(
+                            "en-IN"
+                          )}
+                          )
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                          Base Fee
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Extra Child Fee */}
+                  <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-2">
+                    <span className="text-slate-600 font-medium">
+                      Extra Child / Kid Fee:
+                    </span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 font-mono">
+                        ₹{Number(effectiveChildFee).toLocaleString("en-IN")} /
+                        kid
+                      </span>
+                      {hasCustomChildFee ? (
+                        <span className="text-[9.5px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 px-1.5 py-0.5 rounded-md">
+                          Custom (Base: ₹
+                          {(property?.extraChildFee ?? 0).toLocaleString(
+                            "en-IN"
+                          )}
+                          )
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                          Base Fee
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Guest Capacity Info */}
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 border-t border-slate-100 pt-2">
+                    <span>Guest Allowance:</span>
+                    <span className="font-medium text-slate-700">
+                      Base {property?.baseGuests || 2} guests (Max:{" "}
+                      {property?.guestsMax || 2})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Block Source / Notes */}
+                {(selectedAvailability?.source ||
+                  selectedAvailability?.notes ||
+                  selectedAvailability?.booking?.bookingCode) && (
+                  <div className="space-y-1.5 border-t border-slate-200 pt-2.5 text-xs">
+                    {selectedAvailability?.source && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Block Source:</span>
+                        <span className="font-bold text-slate-800">
+                          {selectedAvailability.source}
+                        </span>
+                      </div>
+                    )}
+                    {selectedAvailability?.notes && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Block Notes:</span>
+                        <span className="font-bold text-slate-800">
+                          {selectedAvailability.notes}
+                        </span>
+                      </div>
+                    )}
+                    {selectedAvailability?.booking?.bookingCode && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">
+                          Booking Reference:
+                        </span>
+                        <span className="font-bold text-amber-700 font-mono">
+                          #{selectedAvailability.booking.bookingCode}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Actions for Single Date - Moved ABOVE Rooms */}
+              <div className="space-y-4">
+                <h4 className="font-bold text-slate-900 text-sm">
+                  Custom Rate &amp; Whole Date Actions
+                </h4>
+
+                {/* Set Custom Price and Fees for Selected Date */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      Set Custom Rate &amp; Fees for{" "}
+                      {selectedDate ? selectedDate.format("DD MMM") : ""}
+                    </span>
+                    {(hasCustomPrice ||
+                      hasCustomAdultFee ||
+                      hasCustomChildFee) && (
+                      <button
+                        type="button"
+                        onClick={handleClearSingleDateCustomRates}
+                        disabled={actionLoading}
+                        className="text-[10px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
+                        title="Reset custom price and fee overrides back to property base"
+                      >
+                        Reset to Base
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                        Nightly Price Override (₹)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder={`Base: ₹${
+                          property?.pricePerNight?.toLocaleString("en-IN") || 0
+                        }`}
+                        value={singleDateCustomPrice}
+                        onChange={(e) =>
+                          setSingleDateCustomPrice(e.target.value)
+                        }
+                        className="rounded-xl text-xs py-2 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                          Extra Adult Fee (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder={`Base: ₹${
+                            property?.extraAdultFee?.toLocaleString("en-IN") ||
+                            0
+                          }`}
+                          value={singleDateExtraAdultPrice}
+                          onChange={(e) =>
+                            setSingleDateExtraAdultPrice(e.target.value)
+                          }
+                          className="rounded-xl text-xs py-1.5 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                          Extra Child Fee (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder={`Base: ₹${
+                            property?.extraChildFee?.toLocaleString("en-IN") ||
+                            0
+                          }`}
+                          value={singleDateExtraChildPrice}
+                          onChange={(e) =>
+                            setSingleDateExtraChildPrice(e.target.value)
+                          }
+                          className="rounded-xl text-xs py-1.5 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveSingleDateCustomRate}
+                      disabled={actionLoading}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Save Rate &amp; Guest Fees</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Whole Date Block / Release (for Whole Villa or Entire Property) */}
+                {!isRoomBased &&
+                  (selectedAvailability?.isBlocked ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleReleaseSingleDate(selectedAvailability);
+                        setIsDrawerOpen(false);
+                      }}
+                      disabled={actionLoading}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
+                    >
+                      <Unlock className="w-4 h-4" />
+                      <span>Release Date (Unlock for booking)</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBlockRange([selectedDate, selectedDate]);
+                        handleBlockRange();
+                        setIsDrawerOpen(false);
+                      }}
+                      disabled={actionLoading}
+                      className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Block This Date</span>
+                    </button>
+                  ))}
+              </div>
+
+              {/* Room Breakdown Card (For Room-based Properties) - Now AFTER Custom Rate & Whole Date Actions */}
+              {isRoomBased && propertyRooms.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <BedDouble className="w-4 h-4 text-amber-600" />
+                      <span className="font-bold text-slate-900 text-xs uppercase tracking-wide">
+                        Rooms ({getUsedRoomsCount(selectedDateStr)}/
+                        {totalInventory} Used)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleBlockAllRoomsSingleDate}
+                        disabled={actionLoading}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl cursor-pointer transition-all"
+                      >
+                        Block All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleReleaseAllRoomsSingleDate}
+                        disabled={actionLoading}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl cursor-pointer transition-all"
+                      >
+                        Release All
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* + / - Stepper for Quick Block / Release on Single Date */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                        Room Inventory Used
+                      </span>
+                      <span className="text-xs font-extrabold text-slate-800 font-mono">
+                        {getUsedRoomsCount(selectedDateStr)} of {totalInventory}{" "}
+                        Rooms Used
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSingleDateDecreaseBlocked}
+                        disabled={
+                          actionLoading ||
+                          getUsedRoomsCount(selectedDateStr) <= 0
+                        }
+                        className="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                        title="Release one room (-)"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="font-bold text-xs text-slate-900 min-w-8 text-center font-mono">
+                        {getUsedRoomsCount(selectedDateStr)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSingleDateIncreaseBlocked}
+                        disabled={
+                          actionLoading ||
+                          getUsedRoomsCount(selectedDateStr) >= totalInventory
+                        }
+                        className="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all shadow-2xs"
+                        title="Block one room (+)"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {propertyRooms.map((room) => {
+                      const blocked = isRoomBlockedOnDate(
+                        selectedDateStr,
+                        room.rawName
+                      );
+                      const roomRecs = getRecordsForDate(
+                        selectedDateStr
+                      ).filter(
+                        (r) =>
+                          r.roomId === room.rawName ||
+                          (!r.roomId && r.isBlocked)
+                      );
+                      const bookedRec = roomRecs.find((r) => r.bookingId);
+
+                      return (
+                        <div
+                          key={room.rawName}
+                          className="py-2 flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800 text-xs">
+                                {room.name}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                ({room.rawName})
+                              </span>
+                              {bookedRec ? (
+                                <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                                  Booked
+                                </span>
+                              ) : blocked ? (
+                                <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                                  Blocked
+                                </span>
+                              ) : (
+                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                                  Available
+                                </span>
+                              )}
+                            </div>
+                            {room.bed && (
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {room.bed} {room.bath ? `• ${room.bath}` : ""}
+                              </p>
+                            )}
+                            {roomRecs[0]?.notes && (
+                              <p className="text-[9px] text-slate-500 italic truncate">
+                                {roomRecs[0].notes}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="shrink-0">
+                            {blocked ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleToggleRoomBlock(room.rawName, true)
+                                }
+                                disabled={actionLoading}
+                                className="px-2.5 py-1 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                                title="Release this room"
+                              >
+                                <Unlock className="w-3 h-3" />
+                                <span>Release</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleToggleRoomBlock(room.rawName, false)
+                                }
+                                disabled={actionLoading}
+                                className="px-2.5 py-1 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                                title="Block this room"
+                              >
+                                <Lock className="w-3 h-3" />
+                                <span>Block</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </Drawer>
     </div>
