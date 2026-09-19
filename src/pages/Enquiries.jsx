@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Tag as TagIcon,
   Eye,
+  X,
 } from "lucide-react";
 import { Modal, Select, message, Tag } from "antd";
 
@@ -58,18 +59,7 @@ const Enquiries = () => {
   const [customMessage, setCustomMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
 
-  const filterTabs = [
-    { id: "ALL", label: "All Leads" },
-    { id: "New Enquiry", label: "New Enquiry" },
-    { id: "Called and Shared details", label: "Called & Shared details" },
-    { id: "Follow Up", label: "Follow Up" },
-    { id: "Follow Up 2", label: "Follow Up 2" },
-    { id: "Converted", label: "Converted" },
-    { id: "Low budget", label: "Low budget" },
-    { id: "No Response", label: "No Response" },
-    { id: "Junk", label: "Junk" },
-    { id: "Not Converted", label: "Not Converted" },
-  ];
+
 
   useEffect(() => {
     fetchEnquiries();
@@ -273,6 +263,22 @@ const Enquiries = () => {
     )
   ).length;
 
+  const leadStatusFilterOptions = [
+    {
+      value: "ALL",
+      label: "All Leads",
+      count: totalCount,
+    },
+    ...LEAD_STATUS_OPTIONS.map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+      color: opt.color,
+      count: enquiries.filter(
+        (e) => (e.leadStatus || "New Enquiry") === opt.value
+      ).length,
+    })),
+  ];
+
   return (
     <div className="p-8 space-y-8 max-w-[1600px] mx-auto font-sans">
       {/* Page Header */}
@@ -362,33 +368,79 @@ const Enquiries = () => {
 
       {/* Filter and Search Bar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
-        <div className="relative w-full md:w-96">
+        <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search code, guest, phone, status..."
+            placeholder="Search code, guest, phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-8 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-          <Filter className="w-4 h-4 text-slate-400 hidden sm:block mr-1" />
-          {filterTabs.map((tab) => (
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+              Lead Status:
+            </span>
+            <Select
+              value={statusFilter}
+              onChange={(val) => setStatusFilter(val || "ALL")}
+              className="w-full sm:w-56"
+              options={leadStatusFilterOptions}
+              optionRender={(option) => (
+                <div className="flex items-center justify-between gap-2 w-full py-0.5">
+                  <div className="flex items-center gap-1.5 truncate">
+                    {option.data.value !== "ALL" ? (
+                      <Tag color={option.data.color} className="mr-0 text-xs font-medium">
+                        {option.data.label}
+                      </Tag>
+                    ) : (
+                      <span className="font-semibold text-slate-700 text-xs">
+                        {option.data.label}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-400 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                    {option.data.count}
+                  </span>
+                </div>
+              )}
+            />
+          </div>
+
+          {(statusFilter !== "ALL" || searchTerm) && (
             <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                statusFilter === tab.id
-                  ? 'bg-brand-600 text-white shadow-xs'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200'
-              }`}
+              type="button"
+              onClick={() => {
+                setStatusFilter("ALL");
+                setSearchTerm("");
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200 transition-all cursor-pointer"
+              title="Reset search and filters"
             >
-              {tab.label}
+              <X className="w-3.5 h-3.5" />
+              <span>Reset</span>
             </button>
-          ))}
-        </div> */}
+          )}
+
+          <div className="text-xs text-slate-500 font-medium pl-1">
+            Showing <span className="font-bold text-slate-900">{filteredEnquiries.length}</span> of{" "}
+            <span className="font-bold text-slate-900">{totalCount}</span>
+          </div>
+        </div>
       </div>
 
       {/* Enquiries Table */}

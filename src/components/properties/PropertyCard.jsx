@@ -172,31 +172,32 @@ export const PropertyCard = ({
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row  gap-2">
             <Link
               to={`/properties/${p._id}/calendar`}
               className="flex items-center justify-center gap-1.5 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-semibold cursor-pointer transition-all shrink-0"
               title="Manage calendar & availability"
             >
               <Calendar className="w-4 h-4 text-amber-600" />
-              <span>Manage</span>
+              <span>Manage calendar & availability</span>
             </Link>
+            <div className="w-full flex items-center gap-2">
+              <Link
+                to={`/properties/review/${p._id}`}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-xl text-xs font-semibold cursor-pointer transition-all shrink-0"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Review</span>
+              </Link>
 
-            <Link
-              to={`/properties/review/${p._id}`}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-xl text-xs font-semibold cursor-pointer transition-all shrink-0"
-            >
-              <Eye className="w-4 h-4" />
-              <span>Review</span>
-            </Link>
-
-            <Link
-              to={`/properties/edit/${p._id}`}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer transition-all shrink-0"
-            >
-              <Edit className="w-4 h-4" />
-              <span>Edit</span>
-            </Link>
+              <Link
+                to={`/properties/edit/${p._id}`}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer transition-all shrink-0"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Edit</span>
+              </Link>
+            </div>
             {p.status === "PENDING_APPROVAL" && (
               <button
                 onClick={() => onApprove(p._id)}
