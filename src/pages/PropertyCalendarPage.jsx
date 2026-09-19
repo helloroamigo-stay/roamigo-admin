@@ -685,7 +685,7 @@ const PropertyCalendarPage = () => {
           setCustomRateRange([start, end]);
           setBlockRange([start, end]);
           setReleaseRange([start, end]);
-          setIsDrawerOpen(true);
+          // setIsDrawerOpen(true);
         } else if (anchor) {
           handleSelectDate(anchor);
         }
@@ -1010,7 +1010,7 @@ const PropertyCalendarPage = () => {
       setCustomRateRange(null);
       setBlockRange(null);
       setReleaseRange(null);
-      setIsDrawerOpen(true);
+      // setIsDrawerOpen(true);
       return;
     }
 
