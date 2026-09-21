@@ -101,6 +101,10 @@ const PropertyCalendarPage = () => {
   const isDraggingRef = useRef(false);
   const shiftAnchorRef = useRef(null);
   const isShiftSelectingRef = useRef(false);
+  const isTouchDraggingRef = useRef(false);
+  const touchAnchorRef = useRef(null);
+  const touchHasMovedRef = useRef(false);
+  const lastTouchEndTimeRef = useRef(0);
 
   const handleSelectDate = (date) => {
     if (!date || date.isBefore(dayjs(), "day")) return;
@@ -665,7 +669,7 @@ const PropertyCalendarPage = () => {
     fetchData();
   }, [id]);
 
-  // Window-level mouseup listener for Airbnb-style drag selection
+  // Window-level mouseup & touch listeners for Airbnb-style drag selection (Desktop & Mobile)
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isShiftSelectingRef.current) {
@@ -687,22 +691,99 @@ const PropertyCalendarPage = () => {
           !selectionRange[0].isSame(selectionRange[1], "day")
         ) {
           const [start, end] = selectionRange;
+          const rangeDates = [];
+          let curr = start.clone();
+          while (curr.isBefore(end, "day") || curr.isSame(end, "day")) {
+            rangeDates.push(curr.format("YYYY-MM-DD"));
+            curr = curr.add(1, "day");
+          }
+          setSelectedCustomDates(rangeDates);
           setSelectedDate(start);
           setCustomRateRange([start, end]);
           setBlockRange([start, end]);
           setReleaseRange([start, end]);
           // setIsDrawerOpen(true);
         } else if (anchor) {
+          if (selectedCustomDates.length <= 1) {
+            handleSelectDate(anchor);
+          }
+        }
+      }
+    };
+
+    const handleGlobalTouchMove = (e) => {
+      if (!isTouchDraggingRef.current || !touchAnchorRef.current) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const cellEl = el?.closest('[data-calendar-cell="true"]');
+      if (cellEl) {
+        const dStr = cellEl.getAttribute('data-date');
+        if (dStr) {
+          const hoveredDate = dayjs(dStr);
+          if (!hoveredDate.isBefore(dayjs(), "day")) {
+            if (e.cancelable) {
+              e.preventDefault();
+            }
+            if (!hoveredDate.isSame(touchAnchorRef.current, "day")) {
+              touchHasMovedRef.current = true;
+            }
+            const anchor = touchAnchorRef.current;
+            const start = hoveredDate.isBefore(anchor, "day") ? hoveredDate : anchor;
+            const end = hoveredDate.isBefore(anchor, "day") ? anchor : hoveredDate;
+            setSelectionRange([start, end]);
+          }
+        }
+      }
+    };
+
+    const handleGlobalTouchEnd = () => {
+      if (!isTouchDraggingRef.current) return;
+      lastTouchEndTimeRef.current = Date.now();
+      const wasDragging = touchHasMovedRef.current;
+      const anchor = touchAnchorRef.current;
+      isTouchDraggingRef.current = false;
+      touchAnchorRef.current = null;
+      touchHasMovedRef.current = false;
+
+      if (
+        wasDragging &&
+        selectionRange &&
+        selectionRange[0] &&
+        selectionRange[1] &&
+        !selectionRange[0].isSame(selectionRange[1], "day")
+      ) {
+        const [start, end] = selectionRange;
+        const rangeDates = [];
+        let curr = start.clone();
+        while (curr.isBefore(end, "day") || curr.isSame(end, "day")) {
+          rangeDates.push(curr.format("YYYY-MM-DD"));
+          curr = curr.add(1, "day");
+        }
+        setSelectedCustomDates(rangeDates);
+        setSelectedDate(start);
+        setCustomRateRange([start, end]);
+        setBlockRange([start, end]);
+        setReleaseRange([start, end]);
+      } else if (anchor) {
+        if (selectedCustomDates.length <= 1) {
           handleSelectDate(anchor);
         }
       }
     };
 
     window.addEventListener("mouseup", handleGlobalMouseUp);
+    window.addEventListener("touchmove", handleGlobalTouchMove, { passive: false });
+    window.addEventListener("touchend", handleGlobalTouchEnd);
+    window.addEventListener("touchcancel", handleGlobalTouchEnd);
+
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
+      window.removeEventListener("touchmove", handleGlobalTouchMove);
+      window.removeEventListener("touchend", handleGlobalTouchEnd);
+      window.removeEventListener("touchcancel", handleGlobalTouchEnd);
     };
-  }, [selectionRange]);
+  }, [selectionRange, selectedCustomDates]);
 
   // Prepopulate single date drawer fields when a single date is selected
   useEffect(() => {
@@ -1043,6 +1124,17 @@ const PropertyCalendarPage = () => {
     const start = current.isBefore(anchor, "day") ? current : anchor;
     const end = current.isBefore(anchor, "day") ? anchor : current;
     setSelectionRange([start, end]);
+  };
+
+  const handleCellTouchStart = (current) => {
+    if (!current || current.isBefore(dayjs(), "day")) return;
+    isTouchDraggingRef.current = true;
+    touchAnchorRef.current = current;
+    touchHasMovedRef.current = false;
+    const currentStr = current.format("YYYY-MM-DD");
+    setSelectedCustomDates([currentStr]);
+    setSelectedDate(current);
+    setSelectionRange([current, current]);
   };
 
   // Discrete Multi-Date Handlers (Shift+Click selected dates)
@@ -1413,12 +1505,16 @@ const PropertyCalendarPage = () => {
 
     return (
       <div
+        data-date={dateStr}
+        data-calendar-cell="true"
         onMouseDown={isPast ? undefined : (e) => handleCellMouseDown(current, e)}
         onMouseEnter={isPast ? undefined : () => handleCellMouseEnter(current)}
+        onTouchStart={isPast ? undefined : () => handleCellTouchStart(current)}
         onClick={
           isPast
             ? undefined
             : (e) => {
+              if (Date.now() - lastTouchEndTimeRef.current < 400) return;
               if (
                 e.shiftKey ||
                 e.ctrlKey ||
@@ -1432,7 +1528,7 @@ const PropertyCalendarPage = () => {
               handleSelectDate(current);
             }
         }
-        className={`h-full w-full p-1.5 flex flex-col shrink-0 justify-between transition-all border select-none min-h-15 lg:min-h-[90px] ${isPast
+        className={`h-full w-full p-1.5 flex flex-col shrink-0 justify-between transition-all border select-none touch-manipulation min-h-15 lg:min-h-[90px] ${isPast
           ? "bg-slate-50/60 border-slate-200/50 text-slate-300 opacity-40 cursor-not-allowed rounded-2xl pointer-events-none"
           : isCustomSelected
             ? "bg-amber-500/25 border-2 border-amber-500 text-slate-900 shadow-sm rounded-2xl ring-2 ring-amber-400/40 ring-offset-1 z-10 cursor-pointer"
