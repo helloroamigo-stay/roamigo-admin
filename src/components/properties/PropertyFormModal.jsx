@@ -9,7 +9,9 @@ import {
   Plus,
   Compass,
   Home,
-  Info
+  Info,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { getFullUploadUrl } from '../../services/api';
 
@@ -129,6 +131,25 @@ export const PropertyFormModal = ({
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, nearbyPlaces: updated };
     });
+  };
+
+  const imageList = Array.isArray(form.images)
+    ? form.images.filter(Boolean)
+    : typeof form.images === 'string'
+    ? form.images.split(',').map((img) => img.trim()).filter(Boolean)
+    : [];
+
+  const handleMoveImage = (idx, direction) => {
+    const list = [...imageList];
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+    const temp = list[idx];
+    list[idx] = list[targetIdx];
+    list[targetIdx] = temp;
+    setForm((prev) => ({
+      ...prev,
+      images: Array.isArray(prev.images) ? list : list.join(', ')
+    }));
   };
 
   return (
@@ -448,73 +469,136 @@ export const PropertyFormModal = ({
 
           {/* Images Section */}
           <div className="space-y-3">
-            <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wide">Property Images *</label>
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wide">
+                  Property Photos ({imageList.length}) *
+                </label>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Click or drag &amp; drop to upload multiple photos. The 1st photo is used as the cover photo!
+                </p>
+              </div>
+              {imageList.length > 0 && (
+                <span className="text-[11px] text-gray-400 font-medium">
+                  {imageList.length} photo{imageList.length > 1 ? 's' : ''} uploaded
+                </span>
+              )}
+            </div>
 
-            {/* Image Thumbnails Previews */}
-            {form.images.split(',').map((img) => img.trim()).filter(Boolean).length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 p-3 bg-gray-900/30 border border-gray-850 rounded-2xl">
-                {form.images.split(',').map((img, idx) => {
-                  const trimmedImg = img.trim();
-                  return (
-                    <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border border-gray-800 bg-gray-900 group">
-                      <img
-                        src={getFullUploadUrl(trimmedImg)}
-                        alt={`Preview ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => onRemoveImage(idx)}
-                        className="absolute top-1 right-1 bg-red-950/80 border border-red-900/50 text-red-400 p-1 rounded-md hover:bg-red-900 hover:text-white transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+            {/* Single Clean Multiple Image Dropzone */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  onImageUpload({ target: { files: e.dataTransfer.files } });
+                }
+              }}
+              className="relative border-2 border-dashed border-gray-750 hover:border-brand-500/70 rounded-2xl p-6 flex flex-col items-center justify-center bg-gray-900/30 hover:bg-gray-900/50 transition-all cursor-pointer group"
+            >
+              {uploadingImages ? (
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <Loader2 className="w-7 h-7 text-brand-500 animate-spin" />
+                  <span className="text-xs font-semibold text-brand-400">Uploading photos to cloud storage...</span>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center gap-2 cursor-pointer w-full text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-gray-200 group-hover:text-brand-300 transition-colors">
+                      Click to upload or drag &amp; drop photos here
+                    </span>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Select multiple images (PNG, JPG, JPEG, WEBP - Max 10MB each)
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={onImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Uploaded Photo Gallery Grid with Reorder and Delete */}
+            {imageList.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-[11px] text-gray-400">
+                  <span>Photo Sequence ({imageList.length} images)</span>
+                  <span>Use arrows to reorder photo sequence</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[300px] overflow-y-auto p-1 bg-gray-900/20 rounded-2xl border border-gray-800">
+                  {imageList.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-gray-900 border border-gray-800 rounded-xl p-2 flex flex-col justify-between space-y-2 group hover:border-brand-500/40 transition-all relative"
+                    >
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-950">
+                        <img
+                          src={getFullUploadUrl(img)}
+                          alt={`Preview ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className={`absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm ${
+                          idx === 0
+                            ? 'bg-amber-500 text-slate-950 ring-1 ring-amber-400'
+                            : 'bg-black/70 text-white backdrop-blur-xs'
+                        }`}>
+                          {idx === 0 ? '★ Cover' : `#${idx + 1}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onRemoveImage(idx)}
+                          className="absolute top-1.5 right-1.5 bg-red-950/90 border border-red-900/60 text-red-400 p-1 rounded-md hover:bg-red-900 hover:text-white transition-all cursor-pointer opacity-0 group-hover:opacity-100 shadow-sm"
+                          title="Delete photo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-1 pt-1 border-t border-gray-800/60">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveImage(idx, -1)}
+                            className={`p-1 rounded text-xs transition-all ${
+                              idx === 0
+                                ? 'text-gray-600 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer'
+                            }`}
+                            title="Move left"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === imageList.length - 1}
+                            onClick={() => handleMoveImage(idx, 1)}
+                            className={`p-1 rounded text-xs transition-all ${
+                              idx === imageList.length - 1
+                                ? 'text-gray-600 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer'
+                            }`}
+                            title="Move right"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          {idx === 0 ? 'Cover' : `#${idx + 1}`}
+                        </span>
+                      </div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             )}
-
-            {/* Upload Zone & Manual URLs Area */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Upload Trigger Dropzone */}
-              <div className="relative border border-dashed border-gray-800 hover:border-brand-500/50 rounded-2xl p-5 flex flex-col items-center justify-center bg-gray-900/20 transition-all min-h-[100px]">
-                {uploadingImages ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
-                    <span className="text-xs text-gray-400">Uploading photos...</span>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center gap-2 cursor-pointer w-full text-center">
-                    <UploadCloud className="w-6 h-6 text-gray-500" />
-                    <div>
-                      <span className="text-xs font-semibold text-brand-400 hover:text-brand-300">Click to upload photos</span>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Supports PNG, JPG, JPEG (Max 10MB per file)</p>
-                    </div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={onImageUpload}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Manual Comma-Separated URL input fallback */}
-              <div>
-                <label className="block text-gray-500 text-[10px] font-semibold mb-1 uppercase">Fallback: Edit Photo URLs list directly</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={form.images}
-                  onChange={(e) => setForm({ ...form, images: e.target.value })}
-                  className="w-full bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-brand-500 font-mono"
-                  placeholder="Or enter image links separated by commas..."
-                />
-              </div>
-            </div>
           </div>
 
           {/* Meals & Menu Section */}

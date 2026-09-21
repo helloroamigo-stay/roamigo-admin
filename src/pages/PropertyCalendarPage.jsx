@@ -35,6 +35,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   X,
   BedDouble,
   Layers,
@@ -67,6 +69,10 @@ const PropertyCalendarPage = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Mobile Collapsible UI states
+  const [isRatesCollapsedMobile, setIsRatesCollapsedMobile] = useState(true);
+  const [isIcalCollapsedMobile, setIsIcalCollapsedMobile] = useState(true);
+
   // iCal Sync state
   const [icalFeeds, setIcalFeeds] = useState([]);
   const [newFeedName, setNewFeedName] = useState("Airbnb");
@@ -95,9 +101,13 @@ const PropertyCalendarPage = () => {
   const isDraggingRef = useRef(false);
   const shiftAnchorRef = useRef(null);
   const isShiftSelectingRef = useRef(false);
+  const isTouchDraggingRef = useRef(false);
+  const touchAnchorRef = useRef(null);
+  const touchHasMovedRef = useRef(false);
+  const lastTouchEndTimeRef = useRef(0);
 
   const handleSelectDate = (date) => {
-    if (!date) return;
+    if (!date || date.isBefore(dayjs(), "day")) return;
     const dStr = date.format("YYYY-MM-DD");
     shiftAnchorRef.current = date;
     setSelectedDate(date);
@@ -198,18 +208,18 @@ const PropertyCalendarPage = () => {
 
     const effectiveRange =
       customRateRange &&
-      customRateRange.length === 2 &&
-      customRateRange[0] &&
-      customRateRange[1]
+        customRateRange.length === 2 &&
+        customRateRange[0] &&
+        customRateRange[1]
         ? customRateRange
         : selectionRange &&
           selectionRange.length === 2 &&
           selectionRange[0] &&
           selectionRange[1]
-        ? selectionRange
-        : selectedDate
-        ? [selectedDate, selectedDate]
-        : null;
+          ? selectionRange
+          : selectedDate
+            ? [selectedDate, selectedDate]
+            : null;
 
     if (!effectiveRange || !effectiveRange[0] || !effectiveRange[1]) {
       message.warning(
@@ -300,18 +310,18 @@ const PropertyCalendarPage = () => {
 
     const effectiveRange =
       customRateRange &&
-      customRateRange.length === 2 &&
-      customRateRange[0] &&
-      customRateRange[1]
+        customRateRange.length === 2 &&
+        customRateRange[0] &&
+        customRateRange[1]
         ? customRateRange
         : selectionRange &&
           selectionRange.length === 2 &&
           selectionRange[0] &&
           selectionRange[1]
-        ? selectionRange
-        : selectedDate
-        ? [selectedDate, selectedDate]
-        : null;
+          ? selectionRange
+          : selectedDate
+            ? [selectedDate, selectedDate]
+            : null;
 
     if (!effectiveRange || !effectiveRange[0] || !effectiveRange[1]) {
       message.warning(
@@ -354,18 +364,18 @@ const PropertyCalendarPage = () => {
     }
     const effectiveRange =
       customRateRange &&
-      customRateRange.length === 2 &&
-      customRateRange[0] &&
-      customRateRange[1]
+        customRateRange.length === 2 &&
+        customRateRange[0] &&
+        customRateRange[1]
         ? customRateRange
         : selectionRange &&
           selectionRange.length === 2 &&
           selectionRange[0] &&
           selectionRange[1]
-        ? selectionRange
-        : selectedDate
-        ? [selectedDate, selectedDate]
-        : null;
+          ? selectionRange
+          : selectedDate
+            ? [selectedDate, selectedDate]
+            : null;
 
     if (!effectiveRange || !effectiveRange[0] || !effectiveRange[1]) {
       message.warning(
@@ -659,7 +669,7 @@ const PropertyCalendarPage = () => {
     fetchData();
   }, [id]);
 
-  // Window-level mouseup listener for Airbnb-style drag selection
+  // Window-level mouseup & touch listeners for Airbnb-style drag selection (Desktop & Mobile)
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isShiftSelectingRef.current) {
@@ -681,22 +691,99 @@ const PropertyCalendarPage = () => {
           !selectionRange[0].isSame(selectionRange[1], "day")
         ) {
           const [start, end] = selectionRange;
+          const rangeDates = [];
+          let curr = start.clone();
+          while (curr.isBefore(end, "day") || curr.isSame(end, "day")) {
+            rangeDates.push(curr.format("YYYY-MM-DD"));
+            curr = curr.add(1, "day");
+          }
+          setSelectedCustomDates(rangeDates);
           setSelectedDate(start);
           setCustomRateRange([start, end]);
           setBlockRange([start, end]);
           setReleaseRange([start, end]);
           // setIsDrawerOpen(true);
         } else if (anchor) {
+          if (selectedCustomDates.length <= 1) {
+            handleSelectDate(anchor);
+          }
+        }
+      }
+    };
+
+    const handleGlobalTouchMove = (e) => {
+      if (!isTouchDraggingRef.current || !touchAnchorRef.current) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const cellEl = el?.closest('[data-calendar-cell="true"]');
+      if (cellEl) {
+        const dStr = cellEl.getAttribute('data-date');
+        if (dStr) {
+          const hoveredDate = dayjs(dStr);
+          if (!hoveredDate.isBefore(dayjs(), "day")) {
+            if (e.cancelable) {
+              e.preventDefault();
+            }
+            if (!hoveredDate.isSame(touchAnchorRef.current, "day")) {
+              touchHasMovedRef.current = true;
+            }
+            const anchor = touchAnchorRef.current;
+            const start = hoveredDate.isBefore(anchor, "day") ? hoveredDate : anchor;
+            const end = hoveredDate.isBefore(anchor, "day") ? anchor : hoveredDate;
+            setSelectionRange([start, end]);
+          }
+        }
+      }
+    };
+
+    const handleGlobalTouchEnd = () => {
+      if (!isTouchDraggingRef.current) return;
+      lastTouchEndTimeRef.current = Date.now();
+      const wasDragging = touchHasMovedRef.current;
+      const anchor = touchAnchorRef.current;
+      isTouchDraggingRef.current = false;
+      touchAnchorRef.current = null;
+      touchHasMovedRef.current = false;
+
+      if (
+        wasDragging &&
+        selectionRange &&
+        selectionRange[0] &&
+        selectionRange[1] &&
+        !selectionRange[0].isSame(selectionRange[1], "day")
+      ) {
+        const [start, end] = selectionRange;
+        const rangeDates = [];
+        let curr = start.clone();
+        while (curr.isBefore(end, "day") || curr.isSame(end, "day")) {
+          rangeDates.push(curr.format("YYYY-MM-DD"));
+          curr = curr.add(1, "day");
+        }
+        setSelectedCustomDates(rangeDates);
+        setSelectedDate(start);
+        setCustomRateRange([start, end]);
+        setBlockRange([start, end]);
+        setReleaseRange([start, end]);
+      } else if (anchor) {
+        if (selectedCustomDates.length <= 1) {
           handleSelectDate(anchor);
         }
       }
     };
 
     window.addEventListener("mouseup", handleGlobalMouseUp);
+    window.addEventListener("touchmove", handleGlobalTouchMove, { passive: false });
+    window.addEventListener("touchend", handleGlobalTouchEnd);
+    window.addEventListener("touchcancel", handleGlobalTouchEnd);
+
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
+      window.removeEventListener("touchmove", handleGlobalTouchMove);
+      window.removeEventListener("touchend", handleGlobalTouchEnd);
+      window.removeEventListener("touchcancel", handleGlobalTouchEnd);
     };
-  }, [selectionRange]);
+  }, [selectionRange, selectedCustomDates]);
 
   // Prepopulate single date drawer fields when a single date is selected
   useEffect(() => {
@@ -815,9 +902,9 @@ const PropertyCalendarPage = () => {
       const payload = {
         dates: [
           item?.dateStr ||
-            (item?.date
-              ? dayjs(item.date).format("YYYY-MM-DD")
-              : selectedDate.format("YYYY-MM-DD")),
+          (item?.date
+            ? dayjs(item.date).format("YYYY-MM-DD")
+            : selectedDate.format("YYYY-MM-DD")),
         ],
         roomId:
           targetRoomId !== undefined
@@ -927,7 +1014,7 @@ const PropertyCalendarPage = () => {
       const res = await adminAPI.releasePropertyDates(id, payload);
       message.success(
         res.message ||
-          `Released ${sidebarReleaseRoomCount} room(s) for selected range!`
+        `Released ${sidebarReleaseRoomCount} room(s) for selected range!`
       );
       setReleaseRange(null);
       fetchData();
@@ -962,7 +1049,7 @@ const PropertyCalendarPage = () => {
       const res = await adminAPI.blockPropertyDates(id, payload);
       message.success(
         res.message ||
-          `Blocked ${sidebarBlockRoomCount} room(s) for selected range!`
+        `Blocked ${sidebarBlockRoomCount} room(s) for selected range!`
       );
       setBlockRange(null);
       fetchData();
@@ -977,6 +1064,7 @@ const PropertyCalendarPage = () => {
   // Drag-to-Select & Shift+Click Multi-Date Selection Handlers
   const handleCellMouseDown = (current, e) => {
     if (e.button !== 0) return; // only left click
+    if (!current || current.isBefore(dayjs(), "day")) return; // Prevent selection of past dates
 
     const isModifier = e.shiftKey || e.ctrlKey || e.metaKey;
     const currentStr = current.format("YYYY-MM-DD");
@@ -998,8 +1086,8 @@ const PropertyCalendarPage = () => {
             prev.length > 0
               ? prev
               : selectedDate
-              ? [selectedDate.format("YYYY-MM-DD")]
-              : [];
+                ? [selectedDate.format("YYYY-MM-DD")]
+                : [];
           next = base.includes(currentStr) ? base : [...base, currentStr];
         }
         return [...new Set(next)].sort();
@@ -1028,6 +1116,7 @@ const PropertyCalendarPage = () => {
 
   const handleCellMouseEnter = (current) => {
     if (!isMouseDownRef.current || !dragAnchorRef.current) return;
+    if (!current || current.isBefore(dayjs(), "day")) return; // Prevent drag range into past
     if (!current.isSame(dragAnchorRef.current, "day")) {
       isDraggingRef.current = true;
     }
@@ -1035,6 +1124,17 @@ const PropertyCalendarPage = () => {
     const start = current.isBefore(anchor, "day") ? current : anchor;
     const end = current.isBefore(anchor, "day") ? anchor : current;
     setSelectionRange([start, end]);
+  };
+
+  const handleCellTouchStart = (current) => {
+    if (!current || current.isBefore(dayjs(), "day")) return;
+    isTouchDraggingRef.current = true;
+    touchAnchorRef.current = current;
+    touchHasMovedRef.current = false;
+    const currentStr = current.format("YYYY-MM-DD");
+    setSelectedCustomDates([currentStr]);
+    setSelectedDate(current);
+    setSelectionRange([current, current]);
   };
 
   // Discrete Multi-Date Handlers (Shift+Click selected dates)
@@ -1081,7 +1181,7 @@ const PropertyCalendarPage = () => {
       const res = await adminAPI.updateCustomRates(id, payload);
       message.success(
         res.message ||
-          `Custom rates updated for ${selectedCustomDates.length} selected date(s)!`
+        `Custom rates updated for ${selectedCustomDates.length} selected date(s)!`
       );
       setCustomPriceOverride("");
       setCustomRateInput("");
@@ -1139,7 +1239,7 @@ const PropertyCalendarPage = () => {
       const res = await adminAPI.releasePropertyDates(id, payload);
       message.success(
         res.message ||
-          `Released ${selectedCustomDates.length} selected date(s)!`
+        `Released ${selectedCustomDates.length} selected date(s)!`
       );
       fetchData();
     } catch (err) {
@@ -1164,7 +1264,7 @@ const PropertyCalendarPage = () => {
       const res = await adminAPI.updateCustomRates(id, payload);
       message.success(
         res.message ||
-          `Reset rates to base for ${selectedCustomDates.length} selected date(s)!`
+        `Reset rates to base for ${selectedCustomDates.length} selected date(s)!`
       );
       fetchData();
     } catch (err) {
@@ -1326,6 +1426,7 @@ const PropertyCalendarPage = () => {
 
     const dateStr = current.format("YYYY-MM-DD");
     const isToday = current.isSame(dayjs(), "day");
+    const isPast = current.isBefore(dayjs(), "day");
 
     const hasRange = selectionRange && selectionRange[0] && selectionRange[1];
     const startStr = hasRange ? selectionRange[0].format("YYYY-MM-DD") : null;
@@ -1404,56 +1505,66 @@ const PropertyCalendarPage = () => {
 
     return (
       <div
-        onMouseDown={(e) => handleCellMouseDown(current, e)}
-        onMouseEnter={() => handleCellMouseEnter(current)}
-        onClick={(e) => {
-          if (
-            e.shiftKey ||
-            e.ctrlKey ||
-            e.metaKey ||
-            isShiftSelectingRef.current
-          ) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
-          handleSelectDate(current);
-        }}
-        className={`h-full w-full p-1.5 flex flex-col shrink-0 justify-between transition-all border cursor-pointer select-none min-h-[90px] ${
-          isCustomSelected
-            ? "bg-amber-500/25 border-2 border-amber-500 text-slate-900 shadow-sm rounded-2xl ring-2 ring-amber-400/40 ring-offset-1 z-10"
+        data-date={dateStr}
+        data-calendar-cell="true"
+        onMouseDown={isPast ? undefined : (e) => handleCellMouseDown(current, e)}
+        onMouseEnter={isPast ? undefined : () => handleCellMouseEnter(current)}
+        onTouchStart={isPast ? undefined : () => handleCellTouchStart(current)}
+        onClick={
+          isPast
+            ? undefined
+            : (e) => {
+              if (Date.now() - lastTouchEndTimeRef.current < 400) return;
+              if (
+                e.shiftKey ||
+                e.ctrlKey ||
+                e.metaKey ||
+                isShiftSelectingRef.current
+              ) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              handleSelectDate(current);
+            }
+        }
+        className={`h-full w-full p-1.5 flex flex-col shrink-0 justify-between transition-all border select-none touch-manipulation min-h-15 lg:min-h-[90px] ${isPast
+          ? "bg-slate-50/60 border-slate-200/50 text-slate-300 opacity-40 cursor-not-allowed rounded-2xl pointer-events-none"
+          : isCustomSelected
+            ? "bg-amber-500/25 border-2 border-amber-500 text-slate-900 shadow-sm rounded-2xl ring-2 ring-amber-400/40 ring-offset-1 z-10 cursor-pointer"
             : isMultiDay && isInRange
-            ? isRangeStart
-              ? "bg-amber-500/20 border-amber-500 border-2 rounded-l-2xl rounded-r-none z-10 shadow-sm"
-              : isRangeEnd
-              ? "bg-amber-500/20 border-amber-500 border-2 rounded-r-2xl rounded-l-none z-10 shadow-sm"
-              : "bg-amber-500/15 border-y-2 border-amber-400 border-x-0 rounded-none"
-            : isSingleSelected || (isRangeStart && !isMultiDay)
-            ? "bg-amber-500/15 border-2 border-amber-500 text-slate-900 shadow-sm rounded-2xl"
-            : areAllRoomsBlocked
-            ? "bg-slate-100/90 border-slate-200 text-slate-400 rounded-2xl"
-            : isPartiallyBlocked
-            ? "bg-amber-50/60 border-amber-300/80 hover:border-amber-400 hover:shadow-xs text-slate-900 rounded-2xl"
-            : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900 rounded-2xl"
-        }`}
+              ? isRangeStart
+                ? "bg-amber-500/20 border-amber-500 border-2 rounded-l-2xl rounded-r-none z-10 shadow-sm cursor-pointer"
+                : isRangeEnd
+                  ? "bg-amber-500/20 border-amber-500 border-2 rounded-r-2xl rounded-l-none z-10 shadow-sm cursor-pointer"
+                  : "bg-amber-500/15 border-y-2 border-amber-400 border-x-0 rounded-none cursor-pointer"
+              : isSingleSelected || (isRangeStart && !isMultiDay)
+                ? "bg-amber-500/15 border-2 border-amber-500 text-slate-900 shadow-sm rounded-2xl cursor-pointer"
+                : areAllRoomsBlocked
+                  ? "bg-slate-100/90 border-slate-200 text-slate-400 rounded-2xl cursor-pointer"
+                  : isPartiallyBlocked
+                    ? "bg-amber-50/60 border-amber-300/80 hover:border-amber-400 hover:shadow-xs text-slate-900 rounded-2xl cursor-pointer"
+                    : "bg-white border-slate-200/90 hover:border-amber-400 hover:shadow-xs text-slate-900 rounded-2xl cursor-pointer"
+          }`}
       >
         {/* Top Bar: Date Number Badge & Range Markers */}
         <div className="flex items-center justify-between shrink-0">
           <div className="flex items-center gap-1.5">
             <span
-              className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
-                isCustomSelected
+              className={`w-4 md:w-7 h-4 md:h-7 flex items-center justify-center rounded-full text-[10px] lg:text-xs font-bold transition-all ${isPast
+                ? "text-slate-300 font-medium"
+                : isCustomSelected
                   ? "bg-amber-600 text-white shadow-xs font-black ring-2 ring-amber-200"
                   : isRangeStart || isRangeEnd
-                  ? "bg-amber-600 text-white shadow-xs font-black"
-                  : isToday
-                  ? "bg-rose-500 text-white shadow-xs"
-                  : isInRange
-                  ? "text-amber-950 font-black bg-amber-200/80"
-                  : areAllRoomsBlocked
-                  ? "line-through text-slate-400 font-semibold"
-                  : "text-slate-900 font-bold"
-              }`}
+                    ? "bg-amber-600 text-white shadow-xs font-black"
+                    : isToday
+                      ? "bg-rose-500 text-white shadow-xs"
+                      : isInRange
+                        ? "text-amber-950 font-black bg-amber-200/80"
+                        : areAllRoomsBlocked
+                          ? "line-through text-slate-400 font-semibold"
+                          : "text-slate-900 font-bold"
+                }`}
             >
               {current.date()}
             </span>
@@ -1479,11 +1590,10 @@ const PropertyCalendarPage = () => {
           <div className="flex items-center gap-1 flex-wrap justify-end">
             {usedRoomsCount > 0 && !areAllRoomsBlocked && (
               <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border ${
-                  usedRoomsCount >= totalRoomsCount
-                    ? "bg-rose-100 text-rose-800 border-rose-300"
-                    : "bg-amber-100 text-amber-900 border-amber-300"
-                }`}
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border ${usedRoomsCount >= totalRoomsCount
+                  ? "bg-rose-100 text-rose-800 border-rose-300"
+                  : "bg-amber-100 text-amber-900 border-amber-300"
+                  }`}
                 title={`${usedRoomsCount} of ${totalRoomsCount} rooms used`}
               >
                 <BedDouble className="w-2.5 h-2.5" />
@@ -1505,14 +1615,14 @@ const PropertyCalendarPage = () => {
                 <span>iCal</span>
               </span>
             )}
-            {hasOverride && !areAllRoomsBlocked && !isBooking && !isICal && (
+            {/* {hasOverride && !areAllRoomsBlocked && !isBooking && !isICal && (
               <span
                 className="bg-emerald-50 text-emerald-700 border border-emerald-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
                 title="Custom Rate Override Active"
               >
                 <span>₹ Custom</span>
               </span>
-            )}
+            )} */}
             {areAllRoomsBlocked && !isBooking && !isICal && (
               <span className="bg-slate-200 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                 <Lock className="w-2.5 h-2.5" />
@@ -1525,13 +1635,12 @@ const PropertyCalendarPage = () => {
         {/* Bottom Bar: Daily Nightly Price */}
         <div className="mt-1 text-center">
           <span
-            className={`text-xs font-bold font-mono tracking-tight block ${
-              areAllRoomsBlocked
-                ? "text-slate-400 opacity-60 line-through"
-                : hasOverride
+            className={`text-xs font-bold font-mono tracking-tight block ${areAllRoomsBlocked
+              ? "text-slate-400 opacity-60 line-through"
+              : hasOverride
                 ? "text-emerald-700 font-extrabold"
                 : "text-slate-800"
-            }`}
+              }`}
           >
             {priceText}
           </span>
@@ -1750,21 +1859,36 @@ const PropertyCalendarPage = () => {
       {/* 3. Quick Rates & Availability Control Toolbar */}
       <div className="bg-white border border-slate-200/80 rounded-3xl p-5 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold shrink-0">
-              <Sparkles className="w-4 h-4" />
+          <div
+            onClick={() => setIsRatesCollapsedMobile(!isRatesCollapsedMobile)}
+            className="flex items-center justify-between sm:justify-start gap-2.5 cursor-pointer sm:cursor-default select-none flex-1"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Quick Rates &amp; Date Availability
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Batch set custom nightly rates, extra guest fees, or
+                  block/release dates
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Quick Rates &amp; Date Availability
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                Batch set custom nightly rates, extra guest fees, or
-                block/release dates
-              </p>
-            </div>
+            <button
+              type="button"
+              className="sm:hidden p-1.5 text-slate-400 hover:text-slate-700 bg-slate-50 border border-slate-200 rounded-xl transition-all"
+              aria-label="Toggle rates section"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${isRatesCollapsedMobile ? "" : "rotate-180"
+                  }`}
+              />
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={`${isRatesCollapsedMobile ? "hidden sm:flex" : "flex"}  flex-wrap items-center gap-2`}>
             <button
               type="button"
               onClick={handleTopBlockDates}
@@ -1801,156 +1925,157 @@ const PropertyCalendarPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
-          {/* Range Picker */}
-          <div className="space-y-1 sm:col-span-2">
-            <label className="text-[11px] font-semibold text-slate-600">
-              Date Range
-            </label>
-            <RangePicker
-              value={customRateRange}
-              onChange={setCustomRateRange}
-              format="YYYY-MM-DD"
-              className="w-full rounded-2xl text-xs py-2"
-              placeholder={["Start Date", "End Date"]}
-            />
-          </div>
-
-          {/* Room Count Stepper */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
-                <BedDouble className="w-3 h-3 text-amber-600" />
-                <span>Rooms</span>
+        <div className={`${isRatesCollapsedMobile ? "hidden sm:block" : "block"} space-y-4`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+            {/* Range Picker */}
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-[11px] font-semibold text-slate-600">
+                Date Range
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">
-                Total: {totalInventory}
-              </span>
+              <RangePicker
+                value={customRateRange}
+                onChange={setCustomRateRange}
+                disabledDate={(current) => current && current.isBefore(dayjs(), "day")}
+                format="YYYY-MM-DD"
+                className="w-full rounded-2xl text-xs py-2"
+                placeholder={["Start Date", "End Date"]}
+              />
             </div>
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-1">
-              <button
-                type="button"
-                onClick={() => setTopRoomCount((prev) => Math.max(1, prev - 1))}
-                disabled={topRoomCount <= 1}
-                className="w-7 h-7 rounded-xl bg-white hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all border border-slate-200/60"
-                title="Decrease room count"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-              <div className="flex-1 text-center font-bold text-xs text-slate-800 truncate">
-                {topRoomCount} {topRoomCount === 1 ? "Room" : "Rooms"}
-                {topRoomCount >= totalInventory && (
-                  <span className="ml-1 text-[10px] text-amber-600 font-bold">
-                    (All)
-                  </span>
-                )}
+
+            {/* Room Count Stepper */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                  <BedDouble className="w-3 h-3 text-amber-600" />
+                  <span>Rooms</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Total: {totalInventory}
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setTopRoomCount((prev) => Math.min(totalInventory, prev + 1))
-                }
-                disabled={topRoomCount >= totalInventory}
-                className="w-7 h-7 rounded-xl bg-white hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all border border-slate-200/60"
-                title="Increase room count"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-1">
+                <button
+                  type="button"
+                  onClick={() => setTopRoomCount((prev) => Math.max(1, prev - 1))}
+                  disabled={topRoomCount <= 1}
+                  className="w-7 h-7 rounded-xl bg-white hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all border border-slate-200/60"
+                  title="Decrease room count"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <div className="flex-1 text-center font-bold text-xs text-slate-800 truncate">
+                  {topRoomCount} {topRoomCount === 1 ? "Room" : "Rooms"}
+                  {topRoomCount >= totalInventory && (
+                    <span className="ml-1 text-[10px] text-amber-600 font-bold">
+                      (All)
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTopRoomCount((prev) => Math.min(totalInventory, prev + 1))
+                  }
+                  disabled={topRoomCount >= totalInventory}
+                  className="w-7 h-7 rounded-xl bg-white hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-all border border-slate-200/60"
+                  title="Increase room count"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Rate Input */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-600">
+                Nightly Rate (₹)
+              </label>
+              <Input
+                type="number"
+                placeholder={`Base: ₹${property?.pricePerNight?.toLocaleString("en-IN") || 0
+                  }`}
+                value={customRateInput}
+                onChange={(e) => setCustomRateInput(e.target.value)}
+                className="rounded-2xl text-xs py-2 font-mono font-bold"
+              />
+            </div>
+
+            {/* Extra Adult Fee Override */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-600">
+                Extra Adult (₹)
+              </label>
+              <Input
+                type="number"
+                placeholder={`Base: ₹${property?.extraAdultFee || 0}`}
+                value={customExtraAdultFeeInput}
+                onChange={(e) => setCustomExtraAdultFeeInput(e.target.value)}
+                className="rounded-2xl text-xs py-2 font-mono font-bold"
+              />
+            </div>
+
+            {/* Extra Child Fee Override */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-600">
+                Extra Kid (₹)
+              </label>
+              <Input
+                type="number"
+                placeholder={`Base: ₹${property?.extraChildFee || 0}`}
+                value={customExtraChildFeeInput}
+                onChange={(e) => setCustomExtraChildFeeInput(e.target.value)}
+                className="rounded-2xl text-xs py-2 font-mono font-bold"
+              />
             </div>
           </div>
 
-          {/* Custom Rate Input */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-slate-600">
-              Nightly Rate (₹)
-            </label>
-            <Input
-              type="number"
-              placeholder={`Base: ₹${
-                property?.pricePerNight?.toLocaleString("en-IN") || 0
-              }`}
-              value={customRateInput}
-              onChange={(e) => setCustomRateInput(e.target.value)}
-              className="rounded-2xl text-xs py-2 font-mono font-bold"
-            />
-          </div>
-
-          {/* Extra Adult Fee Override */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-slate-600">
-              Extra Adult (₹)
-            </label>
-            <Input
-              type="number"
-              placeholder={`Base: ₹${property?.extraAdultFee || 0}`}
-              value={customExtraAdultFeeInput}
-              onChange={(e) => setCustomExtraAdultFeeInput(e.target.value)}
-              className="rounded-2xl text-xs py-2 font-mono font-bold"
-            />
-          </div>
-
-          {/* Extra Child Fee Override */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-slate-600">
-              Extra Kid (₹)
-            </label>
-            <Input
-              type="number"
-              placeholder={`Base: ₹${property?.extraChildFee || 0}`}
-              value={customExtraChildFeeInput}
-              onChange={(e) => setCustomExtraChildFeeInput(e.target.value)}
-              className="rounded-2xl text-xs py-2 font-mono font-bold"
-            />
-          </div>
-        </div>
-
-        {/* Day of Week Checkboxes */}
-        <div className="pt-2.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-600">Apply to Days:</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                (day, idx) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => handleToggleDayOfWeek(idx)}
-                    className={`text-xs px-3 py-1 rounded-full border cursor-pointer select-none transition-all ${
-                      daysOfWeek.includes(idx)
+          {/* Day of Week Checkboxes */}
+          <div className="pt-2.5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-600">Apply to Days:</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (day, idx) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => handleToggleDayOfWeek(idx)}
+                      className={`text-xs px-3 py-1 rounded-full border cursor-pointer select-none transition-all ${daysOfWeek.includes(idx)
                         ? "bg-slate-900 text-white border-slate-900 font-bold shadow-2xs"
                         : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    {day}
-                  </button>
-                )
-              )}
+                        }`}
+                    >
+                      {day}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setDaysOfWeek([0, 1, 2, 3, 4, 5, 6])}
-              className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline"
-            >
-              All Days
-            </button>
-            <span className="text-slate-300">•</span>
-            <button
-              type="button"
-              onClick={() => setDaysOfWeek([1, 2, 3, 4, 5])}
-              className="text-[11px] text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
-            >
-              Weekdays
-            </button>
-            <span className="text-slate-300">•</span>
-            <button
-              type="button"
-              onClick={() => setDaysOfWeek([0, 6])}
-              className="text-[11px] text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
-            >
-              Weekends
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDaysOfWeek([0, 1, 2, 3, 4, 5, 6])}
+                className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold cursor-pointer underline"
+              >
+                All Days
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={() => setDaysOfWeek([1, 2, 3, 4, 5])}
+                className="text-[11px] text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
+              >
+                Weekdays
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={() => setDaysOfWeek([0, 6])}
+                className="text-[11px] text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
+              >
+                Weekends
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1962,9 +2087,9 @@ const PropertyCalendarPage = () => {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <CalendarIcon className="w-5 h-5 text-amber-600" />
-              <span>Interactive Availability Calendar</span>
+              <span>Calendar</span>
             </h2>
-            <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+            {/* <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
                 <span>Today</span>
@@ -1987,7 +2112,7 @@ const PropertyCalendarPage = () => {
                 </kbd>
                 <span>+ Click for multi-select (e.g. 7th, 14th, 19th)</span>
               </span>
-            </div>
+            </div> */}
           </div>
 
           {loading ? (
@@ -2189,8 +2314,11 @@ const PropertyCalendarPage = () => {
                   );
                 }}
                 fullCellRender={fullCellRender}
+                disabledDate={(current) => current && current.isBefore(dayjs(), "day")}
                 onSelect={(date) => {
                   if (
+                    !date ||
+                    date.isBefore(dayjs(), "day") ||
                     isShiftSelectingRef.current ||
                     isDraggingRef.current ||
                     selectedCustomDates.length > 1
@@ -2336,7 +2464,7 @@ const PropertyCalendarPage = () => {
                     className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
                   >
                     <Lock className="w-3 h-3" />
-                    <span>Block Dates</span>
+                    <span>Block Rooms</span>
                   </button>
                   <button
                     type="button"
@@ -2345,7 +2473,7 @@ const PropertyCalendarPage = () => {
                     className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
                   >
                     <Unlock className="w-3 h-3" />
-                    <span>Release Dates</span>
+                    <span>Release Rooms</span>
                   </button>
                 </div>
               </div>
@@ -2447,9 +2575,8 @@ const PropertyCalendarPage = () => {
                 <div>
                   <Input
                     type="number"
-                    placeholder={`Nightly Rate (Base: ₹${
-                      property?.pricePerNight || 0
-                    })`}
+                    placeholder={`Nightly Rate (Base: ₹${property?.pricePerNight || 0
+                      })`}
                     value={rangeCustomPrice}
                     onChange={(e) => setRangeCustomPrice(e.target.value)}
                     className="rounded-xl text-xs py-2 font-mono font-bold"
@@ -2458,9 +2585,8 @@ const PropertyCalendarPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
-                    placeholder={`Adult (Base: ₹${
-                      property?.extraAdultFee || 0
-                    })`}
+                    placeholder={`Adult (Base: ₹${property?.extraAdultFee || 0
+                      })`}
                     value={rangeExtraAdultPrice}
                     onChange={(e) => setRangeExtraAdultPrice(e.target.value)}
                     className="rounded-xl text-xs py-1.5 font-mono"
@@ -2576,22 +2702,21 @@ const PropertyCalendarPage = () => {
                   {(hasCustomPrice ||
                     hasCustomAdultFee ||
                     hasCustomChildFee) && (
-                    <button
-                      type="button"
-                      onClick={handleClearSingleDateCustomRates}
-                      disabled={actionLoading}
-                      className="text-[10px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
-                    >
-                      Reset to Base
-                    </button>
-                  )}
+                      <button
+                        type="button"
+                        onClick={handleClearSingleDateCustomRates}
+                        disabled={actionLoading}
+                        className="text-[10px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
+                      >
+                        Reset to Base
+                      </button>
+                    )}
                 </div>
                 <div>
                   <Input
                     type="number"
-                    placeholder={`Nightly Rate (Base: ₹${
-                      property?.pricePerNight?.toLocaleString("en-IN") || 0
-                    })`}
+                    placeholder={`Nightly Rate (Base: ₹${property?.pricePerNight?.toLocaleString("en-IN") || 0
+                      })`}
                     value={singleDateCustomPrice}
                     onChange={(e) => setSingleDateCustomPrice(e.target.value)}
                     className="rounded-xl text-xs py-2 font-mono font-bold"
@@ -2600,9 +2725,8 @@ const PropertyCalendarPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
-                    placeholder={`Adult (Base: ₹${
-                      property?.extraAdultFee || 0
-                    })`}
+                    placeholder={`Adult (Base: ₹${property?.extraAdultFee || 0
+                      })`}
                     value={singleDateExtraAdultPrice}
                     onChange={(e) =>
                       setSingleDateExtraAdultPrice(e.target.value)
@@ -2714,13 +2838,26 @@ const PropertyCalendarPage = () => {
           )}
 
           {/* iCal Control Box */}
-          <div className="bg-slate-900 text-white rounded-3xl p-5 space-y-5 shadow-lg border border-slate-800">
+          <div className="bg-slate-900 text-white rounded-3xl p-5 space-y-4 shadow-lg border border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
+              <div
+                onClick={() => setIsIcalCollapsedMobile(!isIcalCollapsedMobile)}
+                className="flex items-center gap-2 cursor-pointer sm:cursor-default select-none"
+              >
                 <Globe className="w-5 h-5 text-amber-400" />
                 <h3 className="text-sm font-bold text-white">
                   iCal Calendar Sync
                 </h3>
+                <button
+                  type="button"
+                  className="sm:hidden p-1 text-slate-400 hover:text-slate-200"
+                  aria-label="Toggle iCal section"
+                >
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${isIcalCollapsedMobile ? "" : "rotate-180"
+                      }`}
+                  />
+                </button>
               </div>
               <button
                 type="button"
@@ -2729,150 +2866,149 @@ const PropertyCalendarPage = () => {
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0"
               >
                 <RefreshCw
-                  className={`w-3.5 h-3.5 ${
-                    syncingFeeds ? "animate-spin" : ""
-                  }`}
+                  className={`w-3.5 h-3.5 ${syncingFeeds ? "animate-spin" : ""
+                    }`}
                 />
                 <span>Sync Now</span>
               </button>
             </div>
 
-            {/* 1. Export Roamigo Feed Link */}
-            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-200 flex items-center gap-1">
-                  <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-                  <span>1. Export Roamigo iCal Link</span>
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Paste into Airbnb or Goibibo ("Import Calendar") to block
-                Roamigo bookings on their platforms.
-              </p>
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="text"
-                  readOnly
-                  value={exportICalUrl}
-                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-[11px] font-mono text-slate-300 focus:outline-none truncate"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyExportICal}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
-                    copiedICal
-                      ? "bg-emerald-600 text-white"
-                      : "bg-amber-500 hover:bg-amber-400 text-slate-950"
-                  }`}
-                >
-                  {copiedICal ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                  <span>{copiedICal ? "Copied" : "Copy"}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 2. Import External OTA Feed */}
-            <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-200 flex items-center gap-1">
-                  <LinkIcon className="w-3.5 h-3.5 text-sky-400" />
-                  <span>2. Import External OTA Feed</span>
-                </span>
-              </div>
-              <form onSubmit={handleAddFeed} className="space-y-2.5">
-                <div className="flex flex-col gap-2">
-                  <Select
-                    value={newFeedName}
-                    onChange={setNewFeedName}
-                    className="w-full"
-                    options={[
-                      { value: "Airbnb", label: "Airbnb" },
-                      { value: "Goibibo", label: "Goibibo" },
-                      { value: "MakeMyTrip", label: "MakeMyTrip" },
-                      { value: "VRBO", label: "VRBO" },
-                      { value: "Booking.com", label: "Booking.com" },
-                      { value: "Other", label: "Other" },
-                    ]}
-                  />
+            <div className={`${isIcalCollapsedMobile ? "hidden sm:block" : "block"} space-y-5`}>
+              {/* 1. Export Roamigo Feed Link */}
+              <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                    <span>1. Export Roamigo iCal Link</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Paste into Airbnb or Goibibo ("Import Calendar") to block
+                  Roamigo bookings on their platforms.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
                   <input
-                    type="url"
-                    placeholder="https://www.airbnb.com/calendar/ical/..."
-                    value={newFeedUrl}
-                    onChange={(e) => setNewFeedUrl(e.target.value)}
-                    className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none w-full"
+                    type="text"
+                    readOnly
+                    value={exportICalUrl}
+                    className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-[11px] font-mono text-slate-300 focus:outline-none truncate"
                   />
                   <button
-                    type="submit"
-                    disabled={addingFeed || !newFeedUrl}
-                    className="w-full py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
+                    type="button"
+                    onClick={handleCopyExportICal}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${copiedICal
+                      ? "bg-emerald-600 text-white"
+                      : "bg-amber-500 hover:bg-amber-400 text-slate-950"
+                      }`}
                   >
-                    {addingFeed ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {copiedICal ? (
+                      <Check className="w-3.5 h-3.5" />
                     ) : (
-                      <Plus className="w-3.5 h-3.5" />
+                      <Copy className="w-3.5 h-3.5" />
                     )}
-                    <span>Add External Feed</span>
+                    <span>{copiedICal ? "Copied" : "Copy"}</span>
                   </button>
                 </div>
-              </form>
-            </div>
+              </div>
 
-            {/* List of Active Synced Feeds */}
-            {icalFeeds.length > 0 && (
-              <div className="space-y-2 border-t border-slate-800 pt-3">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Configured Feeds ({icalFeeds.length})
-                </h4>
-                <div className="space-y-2">
-                  {icalFeeds.map((feed) => (
-                    <div
-                      key={feed._id || feed.url}
-                      className="flex items-center justify-between p-3 bg-slate-800 border border-slate-700/70 rounded-2xl"
+              {/* 2. Import External OTA Feed */}
+              <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1">
+                    <LinkIcon className="w-3.5 h-3.5 text-sky-400" />
+                    <span>2. Import External OTA Feed</span>
+                  </span>
+                </div>
+                <form onSubmit={handleAddFeed} className="space-y-2.5">
+                  <div className="flex flex-col gap-2">
+                    <Select
+                      value={newFeedName}
+                      onChange={setNewFeedName}
+                      className="w-full"
+                      options={[
+                        { value: "Airbnb", label: "Airbnb" },
+                        { value: "Goibibo", label: "Goibibo" },
+                        { value: "MakeMyTrip", label: "MakeMyTrip" },
+                        { value: "VRBO", label: "VRBO" },
+                        { value: "Booking.com", label: "Booking.com" },
+                        { value: "Other", label: "Other" },
+                      ]}
+                    />
+                    <input
+                      type="url"
+                      placeholder="https://www.airbnb.com/calendar/ical/..."
+                      value={newFeedUrl}
+                      onChange={(e) => setNewFeedUrl(e.target.value)}
+                      className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none w-full"
+                    />
+                    <button
+                      type="submit"
+                      disabled={addingFeed || !newFeedUrl}
+                      className="w-full py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
                     >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-amber-400">
-                            {feed.name}
-                          </span>
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                              feed.syncStatus === "SUCCESS"
+                      {addingFeed ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="w-3.5 h-3.5" />
+                      )}
+                      <span>Add External Feed</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* List of Active Synced Feeds */}
+              {icalFeeds.length > 0 && (
+                <div className="space-y-2 border-t border-slate-800 pt-3">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    Configured Feeds ({icalFeeds.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {icalFeeds.map((feed) => (
+                      <div
+                        key={feed._id || feed.url}
+                        className="flex items-center justify-between p-3 bg-slate-800 border border-slate-700/70 rounded-2xl"
+                      >
+                        <div className="min-w-0 flex-1 pr-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-amber-400">
+                              {feed.name}
+                            </span>
+                            <span
+                              className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${feed.syncStatus === "SUCCESS"
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                                 : feed.syncStatus === "FAILED"
-                                ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                                : "bg-slate-700 text-slate-400"
-                            }`}
-                          >
-                            {feed.syncStatus || "PENDING"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 truncate mt-1">
-                          {feed.lastSyncMessage || feed.url}
-                        </p>
-                        {feed.lastSyncedAt && (
-                          <p className="text-[9px] text-slate-500 mt-0.5">
-                            Last synced:{" "}
-                            {dayjs(feed.lastSyncedAt).format("DD MMM, HH:mm")}
+                                  ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                                  : "bg-slate-700 text-slate-400"
+                                }`}
+                            >
+                              {feed.syncStatus || "PENDING"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 truncate mt-1">
+                            {feed.lastSyncMessage || feed.url}
                           </p>
-                        )}
+                          {feed.lastSyncedAt && (
+                            <p className="text-[9px] text-slate-500 mt-0.5">
+                              Last synced:{" "}
+                              {dayjs(feed.lastSyncedAt).format("DD MMM, HH:mm")}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeed(feed._id)}
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-xl cursor-pointer transition-all shrink-0"
+                          title="Remove iCal Feed"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteFeed(feed._id)}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-xl cursor-pointer transition-all shrink-0"
-                        title="Remove iCal Feed"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2886,13 +3022,12 @@ const PropertyCalendarPage = () => {
               {isMultiCustomDates
                 ? `Custom Dates Actions (${selectedCustomDates.length} Dates Selected)`
                 : isMultiDayRange
-                ? `Range Actions: ${selectionRange[0].format(
+                  ? `Range Actions: ${selectionRange[0].format(
                     "DD MMM"
                   )} – ${selectionRange[1].format(
                     "DD MMM YYYY"
                   )} (${nightsCount} Nights)`
-                : `Date Actions: ${
-                    selectedDate ? selectedDate.format("ddd, DD MMMM YYYY") : ""
+                  : `Date Actions: ${selectedDate ? selectedDate.format("ddd, DD MMMM YYYY") : ""
                   }`}
             </span>
           </div>
@@ -3593,35 +3728,35 @@ const PropertyCalendarPage = () => {
                 {(selectedAvailability?.source ||
                   selectedAvailability?.notes ||
                   selectedAvailability?.booking?.bookingCode) && (
-                  <div className="space-y-1.5 border-t border-slate-200 pt-2.5 text-xs">
-                    {selectedAvailability?.source && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Block Source:</span>
-                        <span className="font-bold text-slate-800">
-                          {selectedAvailability.source}
-                        </span>
-                      </div>
-                    )}
-                    {selectedAvailability?.notes && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Block Notes:</span>
-                        <span className="font-bold text-slate-800">
-                          {selectedAvailability.notes}
-                        </span>
-                      </div>
-                    )}
-                    {selectedAvailability?.booking?.bookingCode && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500">
-                          Booking Reference:
-                        </span>
-                        <span className="font-bold text-amber-700 font-mono">
-                          #{selectedAvailability.booking.bookingCode}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                    <div className="space-y-1.5 border-t border-slate-200 pt-2.5 text-xs">
+                      {selectedAvailability?.source && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Block Source:</span>
+                          <span className="font-bold text-slate-800">
+                            {selectedAvailability.source}
+                          </span>
+                        </div>
+                      )}
+                      {selectedAvailability?.notes && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Block Notes:</span>
+                          <span className="font-bold text-slate-800">
+                            {selectedAvailability.notes}
+                          </span>
+                        </div>
+                      )}
+                      {selectedAvailability?.booking?.bookingCode && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">
+                            Booking Reference:
+                          </span>
+                          <span className="font-bold text-amber-700 font-mono">
+                            #{selectedAvailability.booking.bookingCode}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
 
               {/* Quick Actions for Single Date - Moved ABOVE Rooms */}
@@ -3640,16 +3775,16 @@ const PropertyCalendarPage = () => {
                     {(hasCustomPrice ||
                       hasCustomAdultFee ||
                       hasCustomChildFee) && (
-                      <button
-                        type="button"
-                        onClick={handleClearSingleDateCustomRates}
-                        disabled={actionLoading}
-                        className="text-[10px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
-                        title="Reset custom price and fee overrides back to property base"
-                      >
-                        Reset to Base
-                      </button>
-                    )}
+                        <button
+                          type="button"
+                          onClick={handleClearSingleDateCustomRates}
+                          disabled={actionLoading}
+                          className="text-[10px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
+                          title="Reset custom price and fee overrides back to property base"
+                        >
+                          Reset to Base
+                        </button>
+                      )}
                   </div>
 
                   <div className="space-y-2.5">
@@ -3659,9 +3794,8 @@ const PropertyCalendarPage = () => {
                       </label>
                       <Input
                         type="number"
-                        placeholder={`Base: ₹${
-                          property?.pricePerNight?.toLocaleString("en-IN") || 0
-                        }`}
+                        placeholder={`Base: ₹${property?.pricePerNight?.toLocaleString("en-IN") || 0
+                          }`}
                         value={singleDateCustomPrice}
                         onChange={(e) =>
                           setSingleDateCustomPrice(e.target.value)
@@ -3677,10 +3811,9 @@ const PropertyCalendarPage = () => {
                         </label>
                         <Input
                           type="number"
-                          placeholder={`Base: ₹${
-                            property?.extraAdultFee?.toLocaleString("en-IN") ||
+                          placeholder={`Base: ₹${property?.extraAdultFee?.toLocaleString("en-IN") ||
                             0
-                          }`}
+                            }`}
                           value={singleDateExtraAdultPrice}
                           onChange={(e) =>
                             setSingleDateExtraAdultPrice(e.target.value)
@@ -3694,10 +3827,9 @@ const PropertyCalendarPage = () => {
                         </label>
                         <Input
                           type="number"
-                          placeholder={`Base: ₹${
-                            property?.extraChildFee?.toLocaleString("en-IN") ||
+                          placeholder={`Base: ₹${property?.extraChildFee?.toLocaleString("en-IN") ||
                             0
-                          }`}
+                            }`}
                           value={singleDateExtraChildPrice}
                           onChange={(e) =>
                             setSingleDateExtraChildPrice(e.target.value)
