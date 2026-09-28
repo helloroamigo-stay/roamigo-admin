@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../services/api';
-import { 
-  Users, 
-  UserCheck, 
-  Home, 
-  Calendar, 
+import {
+  Users,
+  UserCheck,
+  Home,
+  Calendar,
   HelpCircle,
-  DollarSign, 
+  DollarSign,
   Activity,
   ArrowRight,
   TrendingUp,
@@ -42,10 +42,10 @@ const Dashboard = () => {
 
       // Load all data sets in parallel
       const [
-        usersRes, 
-        providersRes, 
-        propertiesRes, 
-        bookingsRes, 
+        usersRes,
+        providersRes,
+        propertiesRes,
+        bookingsRes,
         paymentsRes
       ] = await Promise.all([
         adminAPI.getUsers(),
@@ -64,9 +64,9 @@ const Dashboard = () => {
       // Calculate totals
       const totalRev = payments
         .filter(p => p.status === 'COMPLETED' || p.status === 'SUCCESS' || p.status === 'PAID')
-        .reduce((sum, p) => sum + (p.amount / 100 || 0), 0);
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
 
-      const pendingProvs = providers.filter(p => 
+      const pendingProvs = providers.filter(p =>
         ['REGISTERED', 'PENDING_VERIFICATION', 'PENDING', 'PENDING_APPROVAL'].includes(p.approvalStatus)
       ).length;
       const pendingProps = properties.filter(p => p.status === 'PENDING_APPROVAL').length;
@@ -81,7 +81,7 @@ const Dashboard = () => {
         pendingProperties: pendingProps,
         recentBookings: bookings.slice(0, 5),
         recentProperties: properties.filter(p => p.status === 'PENDING_APPROVAL').slice(0, 4),
-        recentProviders: providers.filter(p => 
+        recentProviders: providers.filter(p =>
           ['REGISTERED', 'PENDING_VERIFICATION', 'PENDING', 'PENDING_APPROVAL'].includes(p.approvalStatus)
         ).slice(0, 4)
       });
@@ -110,7 +110,7 @@ const Dashboard = () => {
           <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
           <h3 className="text-lg font-bold text-slate-900 mb-2">Error Loading Overview</h3>
           <p className="text-slate-600 text-sm mb-6">{error}</p>
-          <button 
+          <button
             onClick={fetchDashboardData}
             className="py-2.5 px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold text-sm shadow-xs transition-all cursor-pointer"
           >
@@ -176,16 +176,16 @@ const Dashboard = () => {
           </div>
           <div className="flex gap-3">
             {stats.pendingProviders > 0 && (
-              <Link 
-                to="/providers" 
+              <Link
+                to="/providers"
                 className="text-xs font-semibold text-brand-700 hover:text-brand-800 py-1.5 px-3 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition-all"
               >
                 Review Hosts
               </Link>
             )}
             {stats.pendingProperties > 0 && (
-              <Link 
-                to="/properties" 
+              <Link
+                to="/properties"
                 className="text-xs font-semibold text-brand-700 hover:text-brand-800 py-1.5 px-3 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition-all"
               >
                 Review Listings
@@ -200,8 +200,8 @@ const Dashboard = () => {
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
-            <Link 
-              key={idx} 
+            <Link
+              key={idx}
               to={card.link}
               className={`bg-gradient-to-br ${card.color} border rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.02] transition-all duration-300 shadow-xs hover:shadow-md group cursor-pointer relative overflow-hidden`}
             >
@@ -248,15 +248,15 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-3">
                 {stats.recentProperties.map((prop) => (
-                  <div 
-                    key={prop._id} 
+                  <div
+                    key={prop._id}
                     className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl transition-all"
                   >
                     <div className="flex items-center gap-3.5">
                       {prop.images?.[0] ? (
-                        <img 
-                          src={prop.images[0]} 
-                          alt={prop.title} 
+                        <img
+                          src={prop.images[0]}
+                          alt={prop.title}
                           className="w-12 h-12 rounded-xl object-cover"
                         />
                       ) : (
@@ -271,8 +271,8 @@ const Dashboard = () => {
                         </p>
                       </div>
                     </div>
-                    <Link 
-                      to="/properties" 
+                    <Link
+                      to="/properties"
                       className="text-xs font-semibold text-brand-700 hover:text-white py-2 px-4 bg-brand-50 hover:bg-brand-600 border border-brand-200 hover:border-brand-600 rounded-xl transition-all"
                     >
                       Review
@@ -303,8 +303,8 @@ const Dashboard = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {stats.recentProviders.map((prov) => (
-                  <div 
-                    key={prov._id} 
+                  <div
+                    key={prov._id}
                     className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col justify-between gap-4"
                   >
                     <div className="flex items-center gap-3">
@@ -351,19 +351,18 @@ const Dashboard = () => {
           ) : (
             <div className="flex-1 space-y-3">
               {stats.recentBookings.map((bk) => (
-                <div 
-                  key={bk._id} 
+                <div
+                  key={bk._id}
                   className="p-4 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl flex flex-col gap-2 transition-all"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 font-mono">#{bk.bookingCode || bk._id?.slice(-6).toUpperCase()}</span>
-                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                      bk.status === 'CONFIRMED' || bk.status === 'COMPLETED' || bk.status === 'PAID'
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                        : bk.status === 'PENDING' || bk.status === 'PENDING_PAYMENT'
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${bk.status === 'CONFIRMED' || bk.status === 'COMPLETED' || bk.status === 'PAID'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : bk.status === 'PENDING' || bk.status === 'PENDING_PAYMENT'
                         ? 'bg-amber-50 border-amber-200 text-amber-800'
                         : 'bg-red-50 border-red-200 text-red-700'
-                    }`}>
+                      }`}>
                       {bk.status}
                     </span>
                   </div>

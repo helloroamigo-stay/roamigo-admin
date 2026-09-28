@@ -110,6 +110,8 @@ export const adminAPI = {
   // Payments, Refunds & Payouts
   getPayments: () => apiClient.get('/admin/payments'),
   getRefunds: () => apiClient.get('/admin/refunds'),
+  refundPayment: (paymentId, payload) => apiClient.post(`/payments/${paymentId}/refund`, payload),
+  cancelBooking: (bookingId, payload) => apiClient.post(`/bookings/${bookingId}/cancel`, payload),
   getPayouts: () => apiClient.get('/admin/payouts'),
   processPayout: (id) => apiClient.patch(`/admin/payouts/${id}/process`),
 
