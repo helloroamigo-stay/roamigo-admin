@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../services/api';
 import {
   Users as UsersIcon,
@@ -8,39 +8,62 @@ import {
   ShieldCheck,
   User,
   UserCheck,
-  UserX,
   Loader2,
   Calendar,
   AlertCircle,
   CheckCircle2,
   XCircle,
-  Filter
+  Filter,
+  RefreshCw,
 } from 'lucide-react';
+import { Pagination } from 'antd';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
+
+  // Search, Filter & Server Pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getUsers();
+      const res = await adminAPI.getUsers({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm.trim() || undefined,
+        role: roleFilter !== 'ALL' ? roleFilter : undefined,
+      });
+
       setUsers(res.data?.users || []);
+      setTotalCount(res.data?.pagination?.total || 0);
     } catch (err) {
       console.error('Error fetching registered users:', err);
       setError('Could not fetch registered users.');
     } finally {
       setLoading(false);
     }
+  }, [currentPage, pageSize, searchTerm, roleFilter]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleRoleChange = (role) => {
+    setRoleFilter(role);
+    setCurrentPage(1);
   };
 
   const handleToggleUserStatus = async (userDoc) => {
@@ -61,18 +84,6 @@ const Users = () => {
       setActionLoading(null);
     }
   };
-
-  // Filter users by search term and role
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
-
-    return matchesSearch && matchesRole;
-  });
 
   const getRoleBadge = (role) => {
     switch (role) {
@@ -116,8 +127,15 @@ const Users = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-xs">
-            Total Users: <span className="text-slate-900 font-extrabold">{users.length}</span>
+            Total Users: <span className="text-slate-900 font-extrabold">{totalCount}</span>
           </div>
+          <button
+            onClick={fetchUsers}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-purple-600' : 'text-slate-500'}`} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
@@ -130,7 +148,7 @@ const Users = () => {
             type="text"
             placeholder="Search by name, email, or phone..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
           />
         </div>
@@ -141,10 +159,10 @@ const Users = () => {
           {['ALL', 'USER', 'PROVIDER', 'ADMIN'].map((role) => (
             <button
               key={role}
-              onClick={() => setRoleFilter(role)}
+              onClick={() => handleRoleChange(role)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 roleFilter === role
-                  ? 'bg-brand-600 text-white shadow-xs'
+                  ? 'bg-purple-600 text-white shadow-xs'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200'
               }`}
             >
@@ -155,7 +173,7 @@ const Users = () => {
       </div>
 
       {/* Main Content Table */}
-      {loading ? (
+      {loading && users.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white border border-slate-200 rounded-3xl shadow-xs">
           <Loader2 className="w-10 h-10 text-purple-600 animate-spin mb-4" />
           <p className="text-slate-500 text-sm font-medium">Fetching registered users database...</p>
@@ -172,7 +190,7 @@ const Users = () => {
             Retry
           </button>
         </div>
-      ) : filteredUsers.length === 0 ? (
+      ) : users.length === 0 ? (
         <div className="py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs">
           <UsersIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900">No users found</h3>
@@ -193,7 +211,7 @@ const Users = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredUsers.map((userDoc) => (
+                {users.map((userDoc) => (
                   <tr
                     key={userDoc._id}
                     className="hover:bg-slate-50/80 transition-colors"
@@ -295,6 +313,28 @@ const Users = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Ant Design Server-side Pagination Footer */}
+          {totalCount > 0 && (
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-xs text-slate-500 font-medium">
+                Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                {Math.min(currentPage * pageSize, totalCount)} of {totalCount} registered users
+              </span>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                showSizeChanger
+                pageSizeOptions={['10', '20', '50', '100']}
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} users`}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

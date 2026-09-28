@@ -34,6 +34,7 @@ import {
   Download,
   FileCheck2,
 } from "lucide-react";
+import { Pagination } from "antd";
 
 export const Providers = () => {
   const navigate = useNavigate();
@@ -46,6 +47,15 @@ export const Providers = () => {
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({
+    total: 0,
+    pending: 0,
+    verified: 0,
+    totalProperties: 0,
+  });
 
   // Modal States: Hosted Properties
   const [propertiesModalOpen, setPropertiesModalOpen] = useState(false);
@@ -75,16 +85,21 @@ export const Providers = () => {
     return url.toLowerCase().includes(".pdf");
   };
 
-  useEffect(() => {
-    fetchProviders();
-  }, []);
-
   const fetchProviders = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getProviders();
+      const res = await adminAPI.getProviders({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm.trim() || undefined,
+        status: statusFilter !== "ALL" ? statusFilter : undefined,
+      });
       setProviders(res.data?.providers || []);
+      setTotalCount(res.data?.pagination?.total || 0);
+      if (res.data?.counts) {
+        setCounts(res.data.counts);
+      }
     } catch (err) {
       console.error("Error fetching providers:", err);
       setError("Could not fetch registered host providers.");
@@ -92,6 +107,10 @@ export const Providers = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProviders();
+  }, [currentPage, pageSize, searchTerm, statusFilter]);
 
   const handleApprove = async (id) => {
     if (
@@ -303,53 +322,6 @@ export const Providers = () => {
     }
   };
 
-  // Filtered providers
-  const filteredProviders = providers.filter((p) => {
-    const term = searchTerm.toLowerCase().trim();
-    const nameMatch = p.userId?.name?.toLowerCase().includes(term);
-    const emailMatch = p.userId?.email?.toLowerCase().includes(term);
-    const phoneMatch = p.userId?.phone?.toLowerCase().includes(term);
-    const bizMatch = p.businessName?.toLowerCase().includes(term);
-
-    const matchesSearch =
-      !term || nameMatch || emailMatch || phoneMatch || bizMatch;
-
-    let matchesStatus = true;
-    if (statusFilter === "APPROVED") {
-      matchesStatus = p.approvalStatus === "APPROVED";
-    } else if (statusFilter === "PENDING") {
-      matchesStatus = [
-        "REGISTERED",
-        "PENDING_VERIFICATION",
-        "PENDING",
-        "PENDING_APPROVAL",
-      ].includes(p.approvalStatus);
-    } else if (statusFilter === "SUSPENDED") {
-      matchesStatus = p.approvalStatus === "SUSPENDED";
-    } else if (statusFilter === "REJECTED") {
-      matchesStatus = p.approvalStatus === "REJECTED";
-    }
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalCount = providers.length;
-  const pendingCount = providers.filter((p) =>
-    [
-      "REGISTERED",
-      "PENDING_VERIFICATION",
-      "PENDING",
-      "PENDING_APPROVAL",
-    ].includes(p.approvalStatus)
-  ).length;
-  const verifiedCount = providers.filter(
-    (p) => p.approvalStatus === "APPROVED"
-  ).length;
-  const totalPropertiesCount = providers.reduce(
-    (sum, p) => sum + (p.propertiesCount || 0),
-    0
-  );
-
   return (
     <div className="p-8 space-y-8 max-w-[1600px] mx-auto font-sans">
       {/* Top Header */}
@@ -384,7 +356,7 @@ export const Providers = () => {
             Total Hosts
           </span>
           <h3 className="text-2xl font-bold text-slate-900 mt-2">
-            {totalCount}
+            {counts.total}
           </h3>
         </div>
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col justify-between shadow-xs">
@@ -392,7 +364,7 @@ export const Providers = () => {
             Awaiting Verification
           </span>
           <h3 className="text-2xl font-bold text-amber-600 mt-2">
-            {pendingCount}
+            {counts.pending}
           </h3>
         </div>
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col justify-between shadow-xs">
@@ -400,7 +372,7 @@ export const Providers = () => {
             Verified Partners
           </span>
           <h3 className="text-2xl font-bold text-emerald-600 mt-2">
-            {verifiedCount}
+            {counts.verified}
           </h3>
         </div>
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col justify-between shadow-xs">
@@ -408,7 +380,7 @@ export const Providers = () => {
             Total Listed Villas
           </span>
           <h3 className="text-2xl font-bold text-purple-600 mt-2">
-            {totalPropertiesCount}
+            {counts.totalProperties}
           </h3>
         </div>
       </div>
@@ -428,7 +400,10 @@ export const Providers = () => {
             type="text"
             placeholder="Search by Host, Business, Email, Phone..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all text-slate-700"
           />
         </div>
@@ -445,7 +420,10 @@ export const Providers = () => {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
+              onClick={() => {
+                setStatusFilter(tab.key);
+                setCurrentPage(1);
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 statusFilter === tab.key
                   ? "bg-brand-600 text-white shadow-xs"
@@ -466,7 +444,7 @@ export const Providers = () => {
             Fetching registered host operators...
           </p>
         </div>
-      ) : filteredProviders.length === 0 ? (
+      ) : providers.length === 0 ? (
         <div className="py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs">
           <Building className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900">
@@ -494,7 +472,7 @@ export const Providers = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredProviders.map((p) => {
+                {providers.map((p) => {
                   const propCount = p.propertiesCount || 0;
                   const bookCount = p.bookingsCount || 0;
 
@@ -686,6 +664,28 @@ export const Providers = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Ant Design Server-side Pagination Footer */}
+          {totalCount > 0 && (
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-xs text-slate-500 font-medium">
+                Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                {Math.min(currentPage * pageSize, totalCount)} of {totalCount} host partners
+              </span>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                showSizeChanger
+                pageSizeOptions={["10", "20", "50", "100"]}
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} hosts`}
+              />
+            </div>
+          )}
         </div>
       )}
 

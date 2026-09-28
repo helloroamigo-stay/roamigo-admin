@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../services/api';
 import {
   CreditCard,
@@ -16,14 +16,22 @@ import {
   TrendingUp,
   RotateCcw,
   X,
+  RefreshCw,
 } from 'lucide-react';
+import { Pagination } from 'antd';
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Search, Filter & Server Pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalVolume, setTotalVolume] = useState(0);
 
   // Refund Modal State
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -33,23 +41,30 @@ const Payments = () => {
   const [refundLoading, setRefundLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState(null);
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getPayments();
+      const res = await adminAPI.getPayments({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm.trim() || undefined,
+        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+      });
       setPayments(res.data?.payments || []);
+      setTotalCount(res.data?.pagination?.total || 0);
+      setTotalVolume(res.data?.totalRevenue || 0);
     } catch (err) {
       console.error('Error fetching payments:', err);
       setError('Could not retrieve payment transaction records.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, pageSize, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
@@ -98,37 +113,6 @@ const Payments = () => {
         );
     }
   };
-
-  const filteredPayments = payments.filter((p) => {
-    const paymentId = p.paymentId || '';
-    const orderId = p.orderId || '';
-    const bookingCode = p.bookingId?.bookingCode || p.bookingId?._id || '';
-    const customerName = p.customerId?.name || '';
-    const customerEmail = p.customerId?.email || '';
-
-    const matchesSearch =
-      paymentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bookingCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === 'ALL' ||
-      (statusFilter === 'SUCCESS' && ['SUCCESS', 'COMPLETED', 'PAID'].includes(p.status)) ||
-      (statusFilter === 'PENDING' && ['PENDING', 'INITIATED'].includes(p.status)) ||
-      (statusFilter === 'FAILED' && ['FAILED', 'REFUNDED', 'CANCELLED'].includes(p.status));
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalVolume = payments
-    .filter(p => ['SUCCESS', 'COMPLETED', 'PAID'].includes(p.status))
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
-
-  const totalCount = payments.length;
-  const successCount = payments.filter(p => ['SUCCESS', 'COMPLETED', 'PAID'].includes(p.status)).length;
-  const pendingCount = payments.filter(p => ['PENDING', 'INITIATED'].includes(p.status)).length;
 
   const openRefundModal = (payment) => {
     setSelectedPayment(payment);
@@ -180,10 +164,17 @@ const Payments = () => {
             Real-time transaction stream, Razorpay gateway payment orders, and financial history.
           </p>
         </div>
+        <button
+          onClick={fetchPayments}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Total Revenue</span>
@@ -198,31 +189,11 @@ const Payments = () => {
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Orders</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Transactions</span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</h3>
           </div>
           <div className="p-3 bg-brand-50 text-brand-600 rounded-xl border border-brand-100">
             <CreditCard className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Successful</span>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{successCount}</h3>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Pending / Initiated</span>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{pendingCount}</h3>
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
-            <Clock className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -235,7 +206,10 @@ const Payments = () => {
             type="text"
             placeholder="Search by Payment ID, Order ID, guest, ref..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
           />
         </div>
@@ -244,15 +218,19 @@ const Payments = () => {
           <Filter className="w-4 h-4 text-slate-400 hidden sm:block mr-1" />
           {[
             { id: 'ALL', label: 'All Transactions' },
-            { id: 'SUCCESS', label: 'Success' },
+            { id: 'PAID', label: 'Paid / Success' },
             { id: 'PENDING', label: 'Pending' },
-            { id: 'FAILED', label: 'Failed/Refunded' },
+            { id: 'REFUNDED', label: 'Refunded' },
+            { id: 'FAILED', label: 'Failed' },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
+              onClick={() => {
+                setStatusFilter(tab.id);
+                setCurrentPage(1);
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${statusFilter === tab.id
-                ? 'bg-brand-600 text-white shadow-xs'
+                ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200'
                 }`}
             >
@@ -280,7 +258,7 @@ const Payments = () => {
             Retry
           </button>
         </div>
-      ) : filteredPayments.length === 0 ? (
+      ) : payments.length === 0 ? (
         <div className="py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs">
           <CreditCard className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900">No payment transactions found</h3>
@@ -302,15 +280,15 @@ const Payments = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredPayments.map((p) => {
+                {payments.map((p) => {
                   const isPaid = ['SUCCESS', 'COMPLETED', 'PAID'].includes(p.status);
                   const isRefunded = p.status === 'REFUNDED';
                   return (
                     <tr key={p._id} className="hover:bg-slate-50/80 transition-colors">
                       {/* Gateway Ref & Order ID */}
                       <td className="py-4 px-6 font-mono text-xs">
-                        <div className="text-slate-900 font-bold">{p.gatewayOrderId || 'Pending Gateway ID'}</div>
-                        <div className="text-slate-500 text-[11px] mt-0.5">order: {p.orderId || 'N/A'}</div>
+                        <div className="text-slate-900 font-bold">{p.gatewayPaymentId || p.gatewayOrderId || 'Pending Gateway ID'}</div>
+                        <div className="text-slate-500 text-[11px] mt-0.5">order: {p.gatewayOrderId || p.orderId || 'N/A'}</div>
                       </td>
 
                       {/* Booking Ref */}
@@ -363,6 +341,28 @@ const Payments = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Ant Design Server-side Pagination Footer */}
+          {totalCount > 0 && (
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-xs text-slate-500 font-medium">
+                Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                {Math.min(currentPage * pageSize, totalCount)} of {totalCount} transactions
+              </span>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                showSizeChanger
+                pageSizeOptions={['10', '20', '50', '100']}
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} payments`}
+              />
+            </div>
+          )}
         </div>
       )}
 

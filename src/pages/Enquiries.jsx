@@ -30,7 +30,7 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import { Modal, Select, message, Tag } from "antd";
+import { Modal, Select, message, Tag, Pagination } from "antd";
 
 const LEAD_STATUS_OPTIONS = [
   { value: "New Enquiry", label: "New Enquiry", color: "blue" },
@@ -53,9 +53,20 @@ const Enquiries = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
+
+  // Search, Filter & Server Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({
+    total: 0,
+    paid: 0,
+    pending: 0,
+    newEnquiries: 0,
+  });
 
   // Confirmation & Email Modal State
   const [selectedEnquiryForConfirm, setSelectedEnquiryForConfirm] =
@@ -63,16 +74,29 @@ const Enquiries = () => {
   const [customMessage, setCustomMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => {
-    fetchEnquiries();
-  }, []);
-
   const fetchEnquiries = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getBookings();
+      const res = await adminAPI.getBookings({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm.trim() || undefined,
+        leadStatus: statusFilter !== "ALL" ? statusFilter : undefined,
+        paymentStatus:
+          paymentFilter === "PAID"
+            ? "PAID"
+            : paymentFilter === "REFUNDED"
+            ? "REFUNDED"
+            : paymentFilter === "PAY_LATER"
+            ? "PENDING"
+            : undefined,
+      });
       setEnquiries(res.data?.bookings || []);
+      setTotalCount(res.data?.pagination?.total || 0);
+      if (res.data?.counts) {
+        setCounts(res.data.counts);
+      }
     } catch (err) {
       console.error("Error fetching property enquiries:", err);
       setError("Could not retrieve guest enquiries.");
@@ -80,6 +104,10 @@ const Enquiries = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchEnquiries();
+  }, [currentPage, pageSize, searchTerm, statusFilter, paymentFilter]);
 
   const isPaidOnline = (enq) => {
     return enq?.paymentStatus === "PAID" || enq?.status === "CONFIRMED";
@@ -275,51 +303,6 @@ const Enquiries = () => {
     );
   };
 
-  const filteredEnquiries = enquiries.filter((enq) => {
-    const code = enq.bookingCode || enq._id || "";
-    const guestName = enq.customerId?.name || enq.guestInfo?.name || "";
-    const guestEmail = enq.customerId?.email || enq.guestInfo?.email || "";
-    const guestPhone = enq.customerId?.phone || enq.guestInfo?.phone || "";
-    const propTitle = enq.propertyId?.title || "";
-    const leadStatus = enq.leadStatus || "New Enquiry";
-    const paid = isPaidOnline(enq);
-
-    const matchesSearch =
-      code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guestEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guestPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      propTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      leadStatus.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === "ALL" || leadStatus === statusFilter;
-
-    let matchesPayment = true;
-    if (paymentFilter === "PAID") {
-      matchesPayment = paid;
-    } else if (paymentFilter === "PAY_LATER") {
-      matchesPayment = !paid && enq.paymentStatus !== "REFUNDED";
-    } else if (paymentFilter === "REFUNDED") {
-      matchesPayment = enq.paymentStatus === "REFUNDED";
-    }
-
-    return matchesSearch && matchesStatus && matchesPayment;
-  });
-
-  const totalCount = enquiries.length;
-  const paidOnlineCount = enquiries.filter(isPaidOnline).length;
-  const payLaterCount = enquiries.filter(
-    (e) => !isPaidOnline(e) && e.paymentStatus !== "REFUNDED"
-  ).length;
-  const inPipelineCount = enquiries.filter((e) =>
-    ["Called and Shared details", "Follow Up", "Follow Up 2"].includes(
-      e.leadStatus
-    )
-  ).length;
-  const convertedCount = enquiries.filter(
-    (e) => e.leadStatus === "Converted"
-  ).length;
-
   const leadStatusFilterOptions = [
     {
       value: "ALL",
@@ -330,9 +313,6 @@ const Enquiries = () => {
       value: opt.value,
       label: opt.label,
       color: opt.color,
-      count: enquiries.filter(
-        (e) => (e.leadStatus || "New Enquiry") === opt.value
-      ).length,
     })),
   ];
 
@@ -341,19 +321,18 @@ const Enquiries = () => {
     {
       value: "PAID",
       label: "Paid Online (Razorpay)",
-      count: paidOnlineCount,
+      count: counts.paid,
       color: "success",
     },
     {
       value: "PAY_LATER",
       label: "Pay Later / Unpaid",
-      count: payLaterCount,
+      count: counts.pending,
       color: "warning",
     },
     {
       value: "REFUNDED",
       label: "Refunded",
-      count: enquiries.filter((e) => e.paymentStatus === "REFUNDED").length,
       color: "error",
     },
   ];
@@ -404,7 +383,10 @@ const Enquiries = () => {
 
         {/* Paid Online */}
         <div
-          onClick={() => setPaymentFilter(paymentFilter === "PAID" ? "ALL" : "PAID")}
+          onClick={() => {
+            setPaymentFilter(paymentFilter === "PAID" ? "ALL" : "PAID");
+            setCurrentPage(1);
+          }}
           className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-emerald-300 ${
             paymentFilter === "PAID" ? "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/20" : "border-slate-200"
           }`}
@@ -419,7 +401,7 @@ const Enquiries = () => {
               </span>
             </div>
             <h3 className="text-2xl font-bold text-emerald-700 mt-1">
-              {paidOnlineCount}
+              {counts.paid || 0}
             </h3>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
@@ -429,7 +411,10 @@ const Enquiries = () => {
 
         {/* Pay Later / Unpaid */}
         <div
-          onClick={() => setPaymentFilter(paymentFilter === "PAY_LATER" ? "ALL" : "PAY_LATER")}
+          onClick={() => {
+            setPaymentFilter(paymentFilter === "PAY_LATER" ? "ALL" : "PAY_LATER");
+            setCurrentPage(1);
+          }}
           className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-amber-300 ${
             paymentFilter === "PAY_LATER" ? "ring-2 ring-amber-500 border-amber-500 bg-amber-50/20" : "border-slate-200"
           }`}
@@ -439,7 +424,7 @@ const Enquiries = () => {
               Pay Later / Unpaid
             </span>
             <h3 className="text-2xl font-bold text-amber-700 mt-1">
-              {payLaterCount}
+              {counts.pending || 0}
             </h3>
           </div>
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
@@ -454,7 +439,7 @@ const Enquiries = () => {
               In Follow-Up
             </span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {inPipelineCount}
+              {counts.inPipeline || 0}
             </h3>
           </div>
           <div className="p-3 bg-sky-50 text-sky-600 rounded-xl border border-sky-100">
@@ -471,13 +456,19 @@ const Enquiries = () => {
             type="text"
             placeholder="Search code, guest, phone..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-8 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
           />
           {searchTerm && (
             <button
               type="button"
-              onClick={() => setSearchTerm("")}
+              onClick={() => {
+                setSearchTerm("");
+                setCurrentPage(1);
+              }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
               title="Clear search"
             >
@@ -495,7 +486,10 @@ const Enquiries = () => {
             </span>
             <Select
               value={paymentFilter}
-              onChange={(val) => setPaymentFilter(val || "ALL")}
+              onChange={(val) => {
+                setPaymentFilter(val || "ALL");
+                setCurrentPage(1);
+              }}
               className="w-full sm:w-52"
               options={paymentFilterOptions}
               optionRender={(option) => (
@@ -503,9 +497,11 @@ const Enquiries = () => {
                   <span className="font-semibold text-slate-700 text-xs truncate">
                     {option.data.label}
                   </span>
-                  <span className="text-[11px] text-slate-500 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                    {option.data.count}
-                  </span>
+                  {option.data.count !== undefined && (
+                    <span className="text-[11px] text-slate-500 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                      {option.data.count}
+                    </span>
+                  )}
                 </div>
               )}
             />
@@ -519,7 +515,10 @@ const Enquiries = () => {
             </span>
             <Select
               value={statusFilter}
-              onChange={(val) => setStatusFilter(val || "ALL")}
+              onChange={(val) => {
+                setStatusFilter(val || "ALL");
+                setCurrentPage(1);
+              }}
               className="w-full sm:w-52"
               options={leadStatusFilterOptions}
               optionRender={(option) => (
@@ -535,9 +534,11 @@ const Enquiries = () => {
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] text-slate-400 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                    {option.data.count}
-                  </span>
+                  {option.data.count !== undefined && (
+                    <span className="text-[11px] text-slate-400 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                      {option.data.count}
+                    </span>
+                  )}
                 </div>
               )}
             />
@@ -550,6 +551,7 @@ const Enquiries = () => {
                 setStatusFilter("ALL");
                 setPaymentFilter("ALL");
                 setSearchTerm("");
+                setCurrentPage(1);
               }}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200 transition-all cursor-pointer"
               title="Reset search and filters"
@@ -560,7 +562,7 @@ const Enquiries = () => {
           )}
 
           <div className="text-xs text-slate-500 font-medium pl-1">
-            Showing <span className="font-bold text-slate-900">{filteredEnquiries.length}</span> of{" "}
+            Showing <span className="font-bold text-slate-900">{enquiries.length}</span> of{" "}
             <span className="font-bold text-slate-900">{totalCount}</span>
           </div>
         </div>
@@ -588,7 +590,7 @@ const Enquiries = () => {
             Retry
           </button>
         </div>
-      ) : filteredEnquiries.length === 0 ? (
+      ) : enquiries.length === 0 ? (
         <div className="py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs">
           <HelpCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900">
@@ -614,7 +616,7 @@ const Enquiries = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredEnquiries.map((enq) => {
+                {enquiries.map((enq) => {
                   const guestName =
                     enq.customerId?.name || enq.guestInfo?.name || "Guest";
                   const guestEmail =
@@ -777,6 +779,29 @@ const Enquiries = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {totalCount > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+              <span className="text-xs text-slate-500 font-medium">
+                Page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
+                <span className="font-bold text-slate-800">{Math.ceil(totalCount / pageSize) || 1}</span> (Total {totalCount} enquiries)
+              </span>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                showSizeChanger
+                pageSizeOptions={["10", "20", "50", "100"]}
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} enquiries`}
+                size="small"
+              />
+            </div>
+          )}
         </div>
       )}
 

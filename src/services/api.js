@@ -69,13 +69,16 @@ export const authAPI = {
 };
 
 export const adminAPI = {
+  // Dashboard
+  getDashboardStats: () => apiClient.get('/admin/dashboard/stats'),
+
   // Users
-  getUsers: () => apiClient.get('/admin/users'),
+  getUsers: (params) => apiClient.get('/admin/users', { params }),
   getUserById: (id) => apiClient.get(`/admin/users/${id}`),
   updateUserStatus: (id, status) => apiClient.patch(`/admin/users/${id}/status`, { status }),
 
   // Providers
-  getProviders: () => apiClient.get('/admin/providers'),
+  getProviders: (params) => apiClient.get('/admin/providers', { params }),
   getProviderById: (id) => apiClient.get(`/admin/providers/${id}`),
   getProviderProperties: (id) => apiClient.get(`/admin/providers/${id}/properties`),
   getProviderBookings: (id) => apiClient.get(`/admin/providers/${id}/bookings`),
@@ -84,7 +87,7 @@ export const adminAPI = {
   suspendProvider: (id) => apiClient.patch(`/admin/providers/${id}/suspend`),
 
   // Properties
-  getProperties: () => apiClient.get('/admin/properties'),
+  getProperties: (params) => apiClient.get('/admin/properties', { params }),
   getPropertyById: (id) => apiClient.get(`/admin/properties/${id}`),
   getPropertyAvailability: (propertyId) => apiClient.get(`/admin/properties/${propertyId}/availability`),
   releasePropertyDates: (propertyId, payload) => apiClient.post(`/admin/properties/${propertyId}/release-dates`, payload),
@@ -101,15 +104,15 @@ export const adminAPI = {
   suspendProperty: (id) => apiClient.patch(`/admin/properties/${id}/suspend`),
 
   // Bookings
-  getBookings: () => apiClient.get('/admin/bookings'),
+  getBookings: (params) => apiClient.get('/admin/bookings', { params }),
   getBookingById: (id) => apiClient.get(`/admin/bookings/${id}`),
   updateBookingLeadStatus: (id, leadStatus) => apiClient.patch(`/admin/bookings/${id}/lead-status`, { leadStatus }),
   confirmEnquiry: (id, payload) => apiClient.patch(`/admin/bookings/${id}/confirm`, payload),
   releaseBookingDates: (bookingId) => apiClient.post(`/admin/bookings/${bookingId}/release`),
 
   // Payments, Refunds & Payouts
-  getPayments: () => apiClient.get('/admin/payments'),
-  getRefunds: () => apiClient.get('/admin/refunds'),
+  getPayments: (params) => apiClient.get('/admin/payments', { params }),
+  getRefunds: (params) => apiClient.get('/admin/refunds', { params }),
   refundPayment: (paymentId, payload) => apiClient.post(`/payments/${paymentId}/refund`, payload),
   cancelBooking: (bookingId, payload) => apiClient.post(`/bookings/${bookingId}/cancel`, payload),
   getPayouts: () => apiClient.get('/admin/payouts'),
@@ -129,7 +132,7 @@ export const adminAPI = {
   deleteCollection: (id) => apiClient.delete(`/admin/collections/${id}`),
 
   // Partner Enquiries
-  getPartnerEnquiries: () => apiClient.get('/admin/partner-enquiries'),
+  getPartnerEnquiries: (params) => apiClient.get('/admin/partner-enquiries', { params }),
   updatePartnerEnquiryStatus: (id, status) => apiClient.patch(`/admin/partner-enquiries/${id}/status`, { status }),
   deletePartnerEnquiry: (id) => apiClient.delete(`/admin/partner-enquiries/${id}`),
 };

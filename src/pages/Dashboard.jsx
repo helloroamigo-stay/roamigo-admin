@@ -40,52 +40,21 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Load all data sets in parallel
-      const [
-        usersRes,
-        providersRes,
-        propertiesRes,
-        bookingsRes,
-        paymentsRes
-      ] = await Promise.all([
-        adminAPI.getUsers(),
-        adminAPI.getProviders(),
-        adminAPI.getProperties(),
-        adminAPI.getBookings(),
-        adminAPI.getPayments(),
-      ]);
-
-      const users = usersRes.data?.users || [];
-      const providers = providersRes.data?.providers || [];
-      const properties = propertiesRes.data?.properties || [];
-      const bookings = bookingsRes.data?.bookings || [];
-      const payments = paymentsRes.data?.payments || [];
-
-      // Calculate totals
-      const totalRev = payments
-        .filter(p => p.status === 'COMPLETED' || p.status === 'SUCCESS' || p.status === 'PAID')
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
-
-      const pendingProvs = providers.filter(p =>
-        ['REGISTERED', 'PENDING_VERIFICATION', 'PENDING', 'PENDING_APPROVAL'].includes(p.approvalStatus)
-      ).length;
-      const pendingProps = properties.filter(p => p.status === 'PENDING_APPROVAL').length;
+      const res = await adminAPI.getDashboardStats();
+      const statsData = res.data || {};
 
       setStats({
-        usersCount: users.length,
-        providersCount: providers.length,
-        propertiesCount: properties.length,
-        bookingsCount: bookings.length,
-        totalRevenue: totalRev,
-        pendingProviders: pendingProvs,
-        pendingProperties: pendingProps,
-        recentBookings: bookings.slice(0, 5),
-        recentProperties: properties.filter(p => p.status === 'PENDING_APPROVAL').slice(0, 4),
-        recentProviders: providers.filter(p =>
-          ['REGISTERED', 'PENDING_VERIFICATION', 'PENDING', 'PENDING_APPROVAL'].includes(p.approvalStatus)
-        ).slice(0, 4)
+        usersCount: statsData.usersCount || 0,
+        providersCount: statsData.providersCount || 0,
+        propertiesCount: statsData.propertiesCount || 0,
+        bookingsCount: statsData.bookingsCount || 0,
+        totalRevenue: statsData.totalRevenue || 0,
+        pendingProviders: statsData.pendingProviders || 0,
+        pendingProperties: statsData.pendingProperties || 0,
+        recentBookings: statsData.recentBookings || [],
+        recentProperties: statsData.recentProperties || [],
+        recentProviders: statsData.recentProviders || [],
       });
-
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
       setError('Failed to aggregate dashboard analytics.');

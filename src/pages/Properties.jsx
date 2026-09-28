@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { adminAPI, uploadAPI, getFullUploadUrl } from "../services/api";
 import {
@@ -36,6 +36,13 @@ const Properties = () => {
   const [selectedCity, setSelectedCity] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({
+    all: 0,
+    published: 0,
+    pendingApproval: 0,
+    other: 0,
+  });
   const [viewMode, setViewMode] = useState("grid");
 
   // States for property creation/edit
@@ -89,7 +96,6 @@ const Properties = () => {
   const hostOptions = useMemo(() => {
     const hostMap = new Map();
 
-    // From providers API
     (providers || []).forEach((pr) => {
       const id = pr._id || pr.userId?._id;
       if (!id) return;
@@ -106,35 +112,18 @@ const Properties = () => {
       });
     });
 
-    // From loaded properties to catch any host
-    (properties || []).forEach((p) => {
-      if (p.providerId && p.providerId.role !== "ADMIN") {
-        const pr = p.providerId;
-        const id = String(typeof pr === "object" ? pr._id : pr);
-        if (!hostMap.has(id)) {
-          const name = pr.name || pr.userId?.name || "Host";
-          const email = pr.email || pr.userId?.email || "";
-          hostMap.set(id, {
-            value: id,
-            label: email ? `${name} (${email})` : name,
-          });
-        }
-      }
-    });
-
     return [
       { value: "ALL", label: "All Hosts" },
       ...Array.from(hostMap.values()).sort((a, b) =>
         a.label.localeCompare(b.label)
       ),
     ];
-  }, [providers, properties]);
+  }, [providers]);
 
   // Prepare dynamic options for City dropdown
   const cityOptions = useMemo(() => {
     const cityMap = new Map();
 
-    // From cities API
     (cities || []).forEach((c) => {
       const id = c._id || c.name;
       if (!id) return;
@@ -144,25 +133,13 @@ const Properties = () => {
       });
     });
 
-    // From loaded properties
-    (properties || []).forEach((p) => {
-      const cName = p.cityId?.name || p.city;
-      const cId = p.cityId?._id || p.cityId || cName;
-      if (cId && cName && !cityMap.has(String(cId))) {
-        cityMap.set(String(cId), {
-          value: String(cId),
-          label: cName,
-        });
-      }
-    });
-
     return [
       { value: "ALL", label: "All Cities" },
       ...Array.from(cityMap.values()).sort((a, b) =>
         a.label.localeCompare(b.label)
       ),
     ];
-  }, [cities, properties]);
+  }, [cities]);
 
   const isFiltered =
     Boolean(searchTerm.trim()) ||
@@ -175,6 +152,7 @@ const Properties = () => {
     setSelectedHost("ALL");
     setSelectedUploadSource("ALL");
     setSelectedCity("ALL");
+    setCurrentPage(1);
   };
 
   const handleOpenEditModal = (p) => {
@@ -205,12 +183,12 @@ const Properties = () => {
         Array.isArray(p.collections) && p.collections.length > 0
           ? p.collections.map((c) => (typeof c === "object" ? c._id : c))
           : p.collectionId
-          ? [
+            ? [
               typeof p.collectionId === "object"
                 ? p.collectionId._id
                 : p.collectionId,
             ]
-          : [],
+            : [],
       amenities: p.amenities || [],
       mealsDescription: p.mealsDescription || "",
       mealsImage: p.mealsImage || "",
@@ -222,11 +200,6 @@ const Properties = () => {
     });
     setIsCreateModalOpen(true);
   };
-
-  useEffect(() => {
-    fetchProperties();
-    fetchFormMetadata();
-  }, []);
 
   const fetchFormMetadata = async () => {
     try {
@@ -243,19 +216,47 @@ const Properties = () => {
     }
   };
 
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getProperties();
+      const res = await adminAPI.getProperties({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm.trim() || undefined,
+        status: activeTab !== "ALL" ? activeTab : undefined,
+        hostId: selectedHost !== "ALL" ? selectedHost : undefined,
+        uploadSource: selectedUploadSource !== "ALL" ? selectedUploadSource : undefined,
+        cityId: selectedCity !== "ALL" ? selectedCity : undefined,
+      });
       setProperties(res.data?.properties || []);
+      setTotalCount(res.data?.pagination?.total || 0);
+      if (res.data?.counts) {
+        setCounts(res.data.counts);
+      }
     } catch (err) {
       console.error("Error fetching properties:", err);
       setError("Could not retrieve property listings database records.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    currentPage,
+    pageSize,
+    searchTerm,
+    activeTab,
+    selectedHost,
+    selectedUploadSource,
+    selectedCity,
+  ]);
+
+  useEffect(() => {
+    fetchFormMetadata();
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
 
   const handleImageUpload = async (e) => {
     const files = e.target.files;
@@ -345,12 +346,12 @@ const Properties = () => {
       const validHomeTruths =
         typeof form.homeTruths === "string"
           ? form.homeTruths
-              .split("\n")
-              .map((s) => s.trim())
-              .filter(Boolean)
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
           : Array.isArray(form.homeTruths)
-          ? form.homeTruths.filter((t) => t && t.trim() !== "")
-          : [];
+            ? form.homeTruths.filter((t) => t && t.trim() !== "")
+            : [];
 
       const propertyData = {
         providerId: form.providerId || undefined,
@@ -409,9 +410,9 @@ const Properties = () => {
     } catch (err) {
       alert(
         err.message ||
-          (editingPropertyId
-            ? "Failed to update property."
-            : "Failed to create property.")
+        (editingPropertyId
+          ? "Failed to update property."
+          : "Failed to create property.")
       );
     } finally {
       setSubmitting(false);
@@ -682,11 +683,10 @@ const Properties = () => {
           type="button"
           onClick={() => handleToggleFeatured(p)}
           disabled={actionLoading === p._id}
-          className={`p-2 rounded-xl border transition-all cursor-pointer shadow-xs ${
-            p.featured
+          className={`p-2 rounded-xl border transition-all cursor-pointer shadow-xs ${p.featured
               ? "bg-amber-500 border-amber-400 text-white hover:bg-amber-600"
               : "bg-slate-50 border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-300"
-          }`}
+            }`}
           title={
             p.featured
               ? "Featured listing (Click to remove)"
@@ -697,9 +697,8 @@ const Properties = () => {
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Star
-              className={`w-3.5 h-3.5 ${
-                p.featured ? "fill-white text-white" : ""
-              }`}
+              className={`w-3.5 h-3.5 ${p.featured ? "fill-white text-white" : ""
+                }`}
             />
           )}
         </button>
@@ -785,12 +784,14 @@ const Properties = () => {
     <div className="p-8 space-y-6 max-w-[1600px] mx-auto font-sans">
       <PropertyTabs
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setCurrentPage(1);
+        }}
         propertiesCount={{
-          all: properties.length,
-          pending: properties.filter((p) => p.status === "PENDING_APPROVAL")
-            .length,
-          published: properties.filter((p) => p.status === "PUBLISHED").length,
+          all: counts.all,
+          pending: counts.pendingApproval,
+          published: counts.published,
         }}
         onOpenCreateModal={() => {
           setEditingPropertyId(null);
@@ -809,12 +810,18 @@ const Properties = () => {
               type="text"
               placeholder="Search properties by title, city, type, host..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm("")}
+                onClick={() => {
+                  setSearchTerm("");
+                  setCurrentPage(1);
+                }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 title="Clear search"
               >
@@ -828,34 +835,34 @@ const Properties = () => {
             <div className="text-xs text-slate-500 font-medium">
               Showing{" "}
               <span className="font-bold text-slate-900">
-                {filteredProperties.length}
+                {properties.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}
+              </span>{" "}
+              -{" "}
+              <span className="font-bold text-slate-900">
+                {Math.min(currentPage * pageSize, totalCount)}
               </span>{" "}
               of{" "}
-              <span className="font-bold text-slate-900">
-                {properties.length}
-              </span>{" "}
+              <span className="font-bold text-slate-900">{totalCount}</span>{" "}
               properties
             </div>
 
             <div className="flex items-center bg-slate-100 p-1 border border-slate-200 rounded-xl">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-lg transition-all cursor-pointer ${
-                  viewMode === "grid"
+                className={`p-2 rounded-lg transition-all cursor-pointer ${viewMode === "grid"
                     ? "bg-white text-brand-600 shadow-xs font-bold"
                     : "text-slate-500 hover:text-slate-800"
-                }`}
+                  }`}
                 title="Card Grid View"
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("table")}
-                className={`p-2 rounded-lg transition-all cursor-pointer ${
-                  viewMode === "table"
+                className={`p-2 rounded-lg transition-all cursor-pointer ${viewMode === "table"
                     ? "bg-white text-brand-600 shadow-xs font-bold"
                     : "text-slate-500 hover:text-slate-800"
-                }`}
+                  }`}
                 title="Antd Table View"
               >
                 <TableIcon className="w-4 h-4" />
@@ -875,7 +882,10 @@ const Properties = () => {
           <div className="min-w-[170px] flex-1 sm:flex-initial">
             <Select
               value={selectedUploadSource}
-              onChange={(val) => setSelectedUploadSource(val)}
+              onChange={(val) => {
+                setSelectedUploadSource(val);
+                setCurrentPage(1);
+              }}
               className="w-full sm:w-44"
               options={[
                 { value: "ALL", label: "All Upload Types" },
@@ -892,7 +902,10 @@ const Properties = () => {
               showSearch
               optionFilterProp="label"
               value={selectedHost}
-              onChange={(val) => setSelectedHost(val)}
+              onChange={(val) => {
+                setSelectedHost(val);
+                setCurrentPage(1);
+              }}
               className="w-full sm:w-56"
               placeholder="Filter by Host"
               options={hostOptions}
@@ -906,7 +919,10 @@ const Properties = () => {
               showSearch
               optionFilterProp="label"
               value={selectedCity}
-              onChange={(val) => setSelectedCity(val)}
+              onChange={(val) => {
+                setSelectedCity(val);
+                setCurrentPage(1);
+              }}
               className="w-full sm:w-44"
               placeholder="Filter by City"
               options={cityOptions}
@@ -935,7 +951,7 @@ const Properties = () => {
         </div>
       )}
 
-      {filteredProperties.length === 0 ? (
+      {properties.length === 0 ? (
         <div className="py-16 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-3xl bg-white space-y-3">
           <p>No property listings found matching your search or filter.</p>
           {isFiltered && (
@@ -951,7 +967,7 @@ const Properties = () => {
       ) : viewMode === "grid" ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {paginatedProperties.map((p) => (
+            {properties.map((p) => (
               <PropertyCard
                 key={p._id}
                 property={p}
@@ -971,33 +987,35 @@ const Properties = () => {
           </div>
 
           {/* Antd Pagination Component */}
-          <div className="flex justify-center md:justify-end bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
-            <Pagination
-              current={currentPage}
-              pageSize={pageSize}
-              total={filteredProperties.length}
-              onChange={(page, newPageSize) => {
-                setCurrentPage(page);
-                setPageSize(newPageSize);
-              }}
-              showSizeChanger
-              pageSizeOptions={["6", "10", "12", "20", "50"]}
-              showTotal={(total, range) =>
-                `Showing ${range[0]}-${range[1]} of ${total} properties`
-              }
-            />
-          </div>
+          {totalCount > 0 && (
+            <div className="flex justify-center md:justify-end bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                onChange={(page, newPageSize) => {
+                  setCurrentPage(page);
+                  setPageSize(newPageSize);
+                }}
+                showSizeChanger
+                pageSizeOptions={["6", "10", "12", "20", "50"]}
+                showTotal={(total, range) =>
+                  `Showing ${range[0]}-${range[1]} of ${total} properties`
+                }
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs p-2">
           <Table
-            dataSource={filteredProperties}
+            dataSource={properties}
             columns={tableColumns}
             rowKey="_id"
             pagination={{
               current: currentPage,
               pageSize: pageSize,
-              total: filteredProperties.length,
+              total: totalCount,
               onChange: (page, pSize) => {
                 setCurrentPage(page);
                 setPageSize(pSize);
