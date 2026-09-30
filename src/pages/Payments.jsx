@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import {
   CreditCard,
@@ -21,12 +22,15 @@ import {
 import { Pagination } from 'antd';
 
 const Payments = () => {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Search, Filter & Server Pagination
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -156,7 +160,7 @@ const Payments = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-3">
+          <h1 className="text-2xl font-sans font-extrabold text-slate-900 flex items-center gap-3">
             <CreditCard className="w-7 h-7 text-emerald-600" />
             <span>Payments & Gateway Orders</span>
           </h1>

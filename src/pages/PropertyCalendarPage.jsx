@@ -43,6 +43,8 @@ import {
   Home,
   CheckCircle2,
   XCircle,
+  Zap,
+  Shield,
 } from "lucide-react";
 import { adminAPI } from "../services/api";
 import dayjs from "dayjs";
@@ -199,6 +201,24 @@ const PropertyCalendarPage = () => {
   }, [property]);
 
   const totalInventory = propertyRooms.length;
+
+  const handleToggleInstantBook = async (newValue) => {
+    try {
+      setActionLoading(true);
+      await adminAPI.updateProperty(id, { instantBook: newValue });
+      setProperty((prev) => ({ ...prev, instantBook: newValue }));
+      message.success(
+        newValue
+          ? "Property booking mode set to 'Instant Book'! Guests can pay online to immediately lock calendar dates."
+          : "Property booking mode set to 'Host Approval'! Guests will submit an enquiry awaiting Host/Admin approval."
+      );
+    } catch (err) {
+      console.error("Error updating booking mode:", err);
+      message.error(err.message || "Failed to update property booking mode.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleUpdateCustomRates = async () => {
     if (selectedCustomDates && selectedCustomDates.length > 1) {
@@ -1784,12 +1804,45 @@ const PropertyCalendarPage = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+          {/* Global Booking Mode Option */}
+          <div className="flex items-center gap-1.5 bg-slate-100/90 border border-slate-200 p-1 rounded-2xl">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => handleToggleInstantBook(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                property?.instantBook
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              }`}
+              title="Instant Book: Property is ready for instant online pay now and dates are immediately blocked"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Instant Book</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => handleToggleInstantBook(false)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                !property?.instantBook
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              }`}
+              title="Approval: Guest submits an enquiry; dates are confirmed upon Host/Admin approval"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Host Approval</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-semibold cursor-pointer transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-semibold cursor-pointer transition-all"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             <span>Refresh</span>

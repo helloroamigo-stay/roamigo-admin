@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { adminAPI } from "../services/api";
 import {
   HelpCircle,
@@ -29,6 +30,8 @@ import {
   CreditCard,
   ShieldCheck,
   Wallet,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { Modal, Select, message, Tag, Pagination } from "antd";
 
@@ -49,6 +52,7 @@ const LEAD_STATUS_OPTIONS = [
 ];
 
 const Enquiries = () => {
+  const navigate = useNavigate();
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -73,6 +77,24 @@ const Enquiries = () => {
     useState(null);
   const [customMessage, setCustomMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+
+  const handleRejectEnquiry = async (enq) => {
+    if (!enq) return;
+    try {
+      setRejecting(true);
+      await adminAPI.cancelBooking(enq._id, { reason: "Admin rejected enquiry" });
+      await adminAPI.updateBookingLeadStatus(enq._id, "Not Converted").catch(() => {});
+      message.success(`Enquiry #${enq.bookingCode || enq._id.slice(-6)} rejected & calendar dates released.`);
+      setSelectedEnquiryForConfirm(null);
+      fetchEnquiries();
+    } catch (err) {
+      console.error("Failed to reject enquiry:", err);
+      message.error(err.message || "Failed to reject enquiry.");
+    } finally {
+      setRejecting(false);
+    }
+  };
 
   const fetchEnquiries = async () => {
     try {
@@ -938,35 +960,70 @@ const Enquiries = () => {
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedEnquiryForConfirm(null);
-                setCustomMessage("");
-              }}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-all"
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              disabled={confirming}
-              onClick={handleSendConfirmation}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 transition-all hover:scale-105"
-            >
-              {confirming ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Locking Dates & Sending Mail...</span>
-                </>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <div>
+              {isPaidOnline(selectedEnquiryForConfirm) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = selectedEnquiryForConfirm?.bookingCode || "";
+                    setSelectedEnquiryForConfirm(null);
+                    navigate(`/payments?search=${encodeURIComponent(code)}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-all"
+                  title="Issue a manual refund for this paid transaction on the Payments page"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Refund via Payments</span>
+                </button>
               ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send Confirmation Email & Lock Dates</span>
-                </>
+                <button
+                  type="button"
+                  disabled={rejecting || actionLoading}
+                  onClick={() => handleRejectEnquiry(selectedEnquiryForConfirm)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+                  title="Reject this enquiry and release dates"
+                >
+                  {rejecting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                  )}
+                  <span>Reject Enquiry</span>
+                </button>
               )}
-            </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEnquiryForConfirm(null);
+                  setCustomMessage("");
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-all"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                disabled={confirming}
+                onClick={handleSendConfirmation}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 transition-all hover:scale-105"
+              >
+                {confirming ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Locking Dates & Sending Mail...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isPaidOnline(selectedEnquiryForConfirm) ? "Send Booking Details Email" : "Send Confirmation Email & Lock Dates"}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
