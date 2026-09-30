@@ -8,3 +8,4 @@
 - fix calender
 - feat: Payment creation, refund and listing
 - feat: filter and pagination 
+- approval and instant booking 
