@@ -162,6 +162,7 @@ const PropertyCalendarPage = () => {
 
   // Header Custom Min Nights Input
   const [headerCustomMinNightsInput, setHeaderCustomMinNightsInput] = useState("");
+  const [drawerMultiMinNights, setDrawerMultiMinNights] = useState("");
 
   const isMultiDayRange =
     selectionRange &&
@@ -335,14 +336,15 @@ const PropertyCalendarPage = () => {
     }
   };
 
-  const handleApplyMultiCustomMinNights = async (nightsVal) => {
+  const handleApplyDrawerMultiMinNights = async (nightsVal) => {
     if (!selectedCustomDates || selectedCustomDates.length === 0) {
       message.error("No dates selected.");
       return;
     }
-    const val = nightsVal !== undefined && nightsVal !== null && !isNaN(Number(nightsVal))
-      ? Number(nightsVal)
-      : Number(multiCustomMinNights);
+    const val =
+      nightsVal !== undefined && nightsVal !== null && !isNaN(Number(nightsVal))
+        ? Number(nightsVal)
+        : Number(drawerMultiMinNights);
 
     if (!val || isNaN(val) || val < 1) {
       message.error("Please enter a valid number of nights (at least 1).");
@@ -356,9 +358,10 @@ const PropertyCalendarPage = () => {
         minNights: val,
       });
       message.success(
-        res.message || `Set min stay to ${val} nights for ${selectedCustomDates.length} selected dates!`
+        res.message ||
+          `Set stay restriction: Minimum ${val} nights required for ${selectedCustomDates.length} selected dates!`
       );
-      setMultiCustomMinNights("");
+      setDrawerMultiMinNights("");
       fetchData();
     } catch (err) {
       console.error("Error setting multi-date min nights:", err);
@@ -368,7 +371,9 @@ const PropertyCalendarPage = () => {
     }
   };
 
-  const handleResetMultiCustomMinNights = async () => {
+  const handleApplyMultiCustomMinNights = handleApplyDrawerMultiMinNights;
+
+  const handleResetDrawerMultiMinNights = async () => {
     if (!selectedCustomDates || selectedCustomDates.length === 0) return;
     setActionLoading(true);
     try {
@@ -377,9 +382,10 @@ const PropertyCalendarPage = () => {
         minNights: null,
       });
       message.success(
-        res.message || `Reset stay restriction back to baseline for ${selectedCustomDates.length} dates!`
+        res.message ||
+          `Reset stay restriction back to baseline for ${selectedCustomDates.length} dates!`
       );
-      setMultiCustomMinNights("");
+      setDrawerMultiMinNights("");
       fetchData();
     } catch (err) {
       console.error("Error resetting stay restriction:", err);
@@ -388,6 +394,8 @@ const PropertyCalendarPage = () => {
       setActionLoading(false);
     }
   };
+
+  const handleResetMultiCustomMinNights = handleResetDrawerMultiMinNights;
 
   const handleUpdateCustomRates = async () => {
     if (selectedCustomDates && selectedCustomDates.length > 1) {
@@ -602,6 +610,79 @@ const PropertyCalendarPage = () => {
     } catch (err) {
       console.error("Error releasing dates:", err);
       message.error(err.message || "Failed to release dates.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTopApplyStayRestriction = async () => {
+    const effectiveRange =
+      customRateRange &&
+        customRateRange.length === 2 &&
+        customRateRange[0] &&
+        customRateRange[1]
+        ? customRateRange
+        : selectionRange &&
+          selectionRange.length === 2 &&
+          selectionRange[0] &&
+          selectionRange[1]
+          ? selectionRange
+          : selectedCustomDates && selectedCustomDates.length > 0
+            ? selectedCustomDates
+            : selectedDate
+              ? [selectedDate, selectedDate]
+              : null;
+
+    if (!effectiveRange) {
+      message.warning(
+        "Please select a date range on the calendar or using the Date Range picker first."
+      );
+      return;
+    }
+
+    if (
+      customMinNightsInput === "" ||
+      customMinNightsInput === undefined ||
+      isNaN(Number(customMinNightsInput)) ||
+      Number(customMinNightsInput) < 1
+    ) {
+      message.warning(
+        "Please enter the required Min Stay nights (e.g. 2, 3, 5) in the Min Stay input field."
+      );
+      return;
+    }
+
+    const minNightsVal = Number(customMinNightsInput);
+
+    try {
+      setActionLoading(true);
+      let payload;
+      if (Array.isArray(effectiveRange) && typeof effectiveRange[0] === "string") {
+        payload = {
+          dates: effectiveRange,
+          minNights: minNightsVal,
+          reason: customRateReason || `Min stay restriction (${minNightsVal}N)`,
+        };
+      } else {
+        const start = dayjs(effectiveRange[0]);
+        const end = dayjs(effectiveRange[1]);
+        payload = {
+          startDate: start.format("YYYY-MM-DD"),
+          endDate: end.format("YYYY-MM-DD"),
+          daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [0, 1, 2, 3, 4, 5, 6],
+          minNights: minNightsVal,
+          reason: customRateReason || `Min stay restriction (${minNightsVal}N) for ${start.format("D MMM")} - ${end.format("D MMM")}`,
+        };
+      }
+
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(
+        res.message || `Set stay restriction: Minimum ${minNightsVal} nights required for selected dates!`
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Error setting date-wise stay restriction:", err);
+      message.error(err.message || "Failed to set stay restriction.");
     } finally {
       setActionLoading(false);
     }
@@ -1101,7 +1182,18 @@ const PropertyCalendarPage = () => {
         setSingleDateMinNights("");
       }
     }
-  }, [isDrawerOpen, selectedDate, isMultiDayRange, availabilities]);
+
+    if (isDrawerOpen && selectedCustomDates && selectedCustomDates.length > 0) {
+      const firstDateStr = selectedCustomDates[0];
+      const records = getRecordsForDate(firstDateStr);
+      const matchWithMin = records.find((r) => typeof r.minNights === "number" && r.minNights > 0);
+      if (matchWithMin) {
+        setDrawerMultiMinNights(String(matchWithMin.minNights));
+      } else {
+        setDrawerMultiMinNights("");
+      }
+    }
+  }, [isDrawerOpen, selectedDate, isMultiDayRange, selectedCustomDates, availabilities]);
 
   // Export iCal URL
   const exportICalUrl = `https://roamigo-backend.in/api/v1/properties/${id}/calendar.ics`;
@@ -2321,6 +2413,16 @@ const PropertyCalendarPage = () => {
             </button>
             <button
               type="button"
+              onClick={handleTopApplyStayRestriction}
+              disabled={actionLoading}
+              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/90 font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-2xs shrink-0"
+              title="Restrict Min Stay for selected dates only (e.g. New Year Dec/Jan)"
+            >
+              <Clock className="w-3.5 h-3.5 text-purple-600" />
+              <span>Set Min Stay</span>
+            </button>
+            <button
+              type="button"
               onClick={handleUpdateCustomRates}
               disabled={actionLoading}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
@@ -2867,6 +2969,73 @@ const PropertyCalendarPage = () => {
                 </div>
               )}
 
+              {/* Dedicated Stay Restriction Card in Sidebar for Discrete Dates */}
+              <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-purple-700" />
+                    <span className="font-bold text-slate-800 text-xs">
+                      Min Stay Restriction ({selectedCustomDates.length} Dates)
+                    </span>
+                  </div>
+                  {drawerMultiMinNights !== "" && (
+                    <button
+                      type="button"
+                      onClick={handleResetDrawerMultiMinNights}
+                      disabled={actionLoading}
+                      className="text-[10px] text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-0.5"
+                      title="Reset stay restriction to baseline"
+                    >
+                      <RefreshCw className="w-2.5 h-2.5" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1">
+                  {[1, 2, 3, 4, 5, 7].map((n) => {
+                    const isSelected = drawerMultiMinNights === String(n);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => {
+                          setDrawerMultiMinNights(String(n));
+                          handleApplyDrawerMultiMinNights(n);
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                          isSelected
+                            ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                        }`}
+                      >
+                        {n === 1 ? "1N (Default)" : `${n}N`}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Custom (e.g. 3)"
+                    value={drawerMultiMinNights}
+                    onChange={(e) => setDrawerMultiMinNights(e.target.value)}
+                    onPressEnter={() => handleApplyDrawerMultiMinNights()}
+                    className="rounded-xl text-xs py-1 font-mono font-bold flex-1 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleApplyDrawerMultiMinNights()}
+                    disabled={actionLoading || !drawerMultiMinNights}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+
               {/* Quick Actions */}
               <div className="space-y-2 pt-1">
                 <button
@@ -3022,7 +3191,7 @@ const PropertyCalendarPage = () => {
                 </div>
 
                 {/* Minimum Stay Restriction Toggle Card for Range */}
-                {/* <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-2">
+                <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-purple-700" />
@@ -3087,7 +3256,7 @@ const PropertyCalendarPage = () => {
                       className="rounded-xl text-xs py-1 font-mono font-bold w-20 bg-white"
                     />
                   </div>
-                </div> */}
+                </div>
 
                 <button
                   type="button"
@@ -3822,6 +3991,83 @@ const PropertyCalendarPage = () => {
                       <span>Reset to Base Rates</span>
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Dedicated Stay Restriction Card for Multi-Selected Dates */}
+              <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-purple-700" />
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      Min Stay for {selectedCustomDates.length} Dates
+                    </h4>
+                  </div>
+                  {drawerMultiMinNights !== "" && (
+                    <button
+                      type="button"
+                      onClick={handleResetDrawerMultiMinNights}
+                      disabled={actionLoading}
+                      className="text-xs text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-1"
+                      title="Reset stay restriction to baseline for selected dates"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  Restrict minimum required nights for guests checking in on these {selectedCustomDates.length} selected dates (e.g. New Year / Holiday seasons).
+                </p>
+
+                {/* Quick Select Pills */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[1, 2, 3, 4, 5, 7].map((n) => {
+                    const isSelected = drawerMultiMinNights === String(n);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => {
+                          setDrawerMultiMinNights(String(n));
+                          handleApplyDrawerMultiMinNights(n);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                          isSelected
+                            ? "bg-purple-600 text-white border-purple-600 shadow-xs ring-1 ring-purple-600"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                        }`}
+                      >
+                        {n === 1 ? "1N (Default)" : `${n} Nights`}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="365"
+                      placeholder="Custom nights (e.g. 3, 5, 10)"
+                      value={drawerMultiMinNights}
+                      onChange={(e) => setDrawerMultiMinNights(e.target.value)}
+                      onPressEnter={() => handleApplyDrawerMultiMinNights()}
+                      className="rounded-xl text-xs py-2 font-mono font-bold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyDrawerMultiMinNights()}
+                    disabled={actionLoading || !drawerMultiMinNights}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Set Min Nights</span>
+                  </button>
                 </div>
               </div>
 
