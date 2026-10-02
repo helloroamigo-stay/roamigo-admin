@@ -22,7 +22,7 @@ import {
   RefreshCw,
   MessageSquare,
 } from "lucide-react";
-import { Modal, Select, message, Popconfirm, Tag } from "antd";
+import { Modal, Select, message, Popconfirm, Tag, Pagination } from "antd";
 
 const PartnerEnquiries = () => {
   const [enquiries, setEnquiries] = useState([]);
@@ -31,28 +31,57 @@ const PartnerEnquiries = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({
+    all: 0,
+    pending: 0,
+    contacted: 0,
+    approved: 0,
+    rejected: 0,
+  });
 
   // Detail Modal State
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
 
   const filterTabs = [
-    { id: "ALL", label: "All Partner Enquiries" },
-    { id: "PENDING", label: "Pending Review" },
-    { id: "CONTACTED", label: "Contacted" },
-    { id: "APPROVED", label: "Approved / Onboarded" },
-    { id: "REJECTED", label: "Declined" },
+    { id: "ALL", label: "All Partner Enquiries", count: counts.all },
+    { id: "PENDING", label: "Pending Review", count: counts.pending },
+    { id: "CONTACTED", label: "Contacted", count: counts.contacted },
+    { id: "APPROVED", label: "Approved / Onboarded", count: counts.approved },
+    { id: "REJECTED", label: "Declined", count: counts.rejected },
   ];
 
   useEffect(() => {
     fetchEnquiries();
-  }, []);
+  }, [currentPage, pageSize, statusFilter, searchTerm]);
 
   const fetchEnquiries = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getPartnerEnquiries();
+      const params = {
+        page: currentPage,
+        limit: pageSize,
+      };
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+      if (statusFilter && statusFilter !== "ALL") {
+        params.status = statusFilter;
+      }
+
+      const res = await adminAPI.getPartnerEnquiries(params);
       setEnquiries(res.data?.enquiries || []);
+      if (res.data?.pagination) {
+        setTotalCount(res.data.pagination.total || 0);
+      } else {
+        setTotalCount(res.data?.enquiries?.length || 0);
+      }
+      if (res.data?.counts) {
+        setCounts(res.data.counts);
+      }
     } catch (err) {
       console.error("Error fetching partner enquiries:", err);
       setError("Could not retrieve partner enquiries.");
@@ -66,11 +95,7 @@ const PartnerEnquiries = () => {
       setActionLoading(id);
       await adminAPI.updatePartnerEnquiryStatus(id, newStatus);
       message.success(`Status updated to ${newStatus}`);
-      setEnquiries((prev) =>
-        prev.map((item) =>
-          item._id === id ? { ...item, status: newStatus } : item
-        )
-      );
+      fetchEnquiries();
       if (selectedEnquiry && selectedEnquiry._id === id) {
         setSelectedEnquiry((prev) => ({ ...prev, status: newStatus }));
       }
@@ -87,7 +112,7 @@ const PartnerEnquiries = () => {
       setActionLoading(id);
       await adminAPI.deletePartnerEnquiry(id);
       message.success("Partner enquiry deleted successfully.");
-      setEnquiries((prev) => prev.filter((item) => item._id !== id));
+      fetchEnquiries();
       if (selectedEnquiry && selectedEnquiry._id === id) {
         setSelectedEnquiry(null);
       }
@@ -158,40 +183,6 @@ const PartnerEnquiries = () => {
     }
   };
 
-  const filteredEnquiries = enquiries.filter((enq) => {
-    const fullName = `${enq.firstName || ""} ${enq.lastName || ""}`
-      .trim()
-      .toLowerCase();
-    const email = (enq.email || "").toLowerCase();
-    const phone = (enq.phone || "").toLowerCase();
-    const location = (enq.location || "").toLowerCase();
-    const propertyType = (enq.propertyType || "").toLowerCase();
-    const source = (enq.source || "").toLowerCase();
-    const term = searchTerm.toLowerCase();
-
-    const matchesSearch =
-      fullName.includes(term) ||
-      email.includes(term) ||
-      phone.includes(term) ||
-      location.includes(term) ||
-      propertyType.includes(term) ||
-      source.includes(term);
-
-    const matchesStatus =
-      statusFilter === "ALL" || (enq.status || "PENDING") === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalCount = enquiries.length;
-  const pendingCount = enquiries.filter(
-    (e) => (e.status || "PENDING") === "PENDING"
-  ).length;
-  const contactedCount = enquiries.filter(
-    (e) => e.status === "CONTACTED"
-  ).length;
-  const approvedCount = enquiries.filter((e) => e.status === "APPROVED").length;
-
   return (
     <div className="p-8 space-y-8 max-w-[1600px] mx-auto font-sans">
       {/* Header */}
@@ -222,13 +213,21 @@ const PartnerEnquiries = () => {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+        <div
+          onClick={() => {
+            setStatusFilter("ALL");
+            setCurrentPage(1);
+          }}
+          className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-brand-300 ${
+            statusFilter === "ALL" ? "ring-2 ring-brand-500 border-brand-500 bg-brand-50/20" : "border-slate-200"
+          }`}
+        >
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Total Inquiries
             </span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {totalCount}
+              {counts.all || 0}
             </h3>
           </div>
           <div className="p-3 bg-brand-50 text-brand-600 rounded-xl border border-brand-100">
@@ -236,13 +235,21 @@ const PartnerEnquiries = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+        <div
+          onClick={() => {
+            setStatusFilter("PENDING");
+            setCurrentPage(1);
+          }}
+          className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-amber-300 ${
+            statusFilter === "PENDING" ? "ring-2 ring-amber-500 border-amber-500 bg-amber-50/20" : "border-slate-200"
+          }`}
+        >
           <div>
             <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
               Pending Review
             </span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {pendingCount}
+              {counts.pending || 0}
             </h3>
           </div>
           <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
@@ -250,13 +257,21 @@ const PartnerEnquiries = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+        <div
+          onClick={() => {
+            setStatusFilter("CONTACTED");
+            setCurrentPage(1);
+          }}
+          className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-blue-300 ${
+            statusFilter === "CONTACTED" ? "ring-2 ring-blue-500 border-blue-500 bg-blue-50/20" : "border-slate-200"
+          }`}
+        >
           <div>
             <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
               Contacted Leads
             </span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {contactedCount}
+              {counts.contacted || 0}
             </h3>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
@@ -264,13 +279,21 @@ const PartnerEnquiries = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+        <div
+          onClick={() => {
+            setStatusFilter("APPROVED");
+            setCurrentPage(1);
+          }}
+          className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-emerald-300 ${
+            statusFilter === "APPROVED" ? "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/20" : "border-slate-200"
+          }`}
+        >
           <div>
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
               Approved / Onboarded
             </span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {approvedCount}
+              {counts.approved || 0}
             </h3>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
@@ -287,7 +310,10 @@ const PartnerEnquiries = () => {
             type="text"
             placeholder="Search by name, email, phone, location, property..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
           />
         </div>
@@ -297,14 +323,28 @@ const PartnerEnquiries = () => {
           {filterTabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              onClick={() => {
+                setStatusFilter(tab.id);
+                setCurrentPage(1);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                 statusFilter === tab.id
                   ? "bg-brand-600 text-white shadow-xs"
                   : "bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200"
               }`}
             >
-              {tab.label}
+              <span>{tab.label}</span>
+              {tab.count !== undefined && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    statusFilter === tab.id
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-200 text-slate-700"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -332,7 +372,7 @@ const PartnerEnquiries = () => {
             Retry
           </button>
         </div>
-      ) : filteredEnquiries.length === 0 ? (
+      ) : enquiries.length === 0 ? (
         <div className="py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs">
           <Handshake className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900">
@@ -358,7 +398,7 @@ const PartnerEnquiries = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredEnquiries.map((enq) => {
+                {enquiries.map((enq) => {
                   const fullName =
                     `${enq.firstName || ""} ${enq.lastName || ""}`.trim() ||
                     "Partner Applicant";
@@ -494,6 +534,29 @@ const PartnerEnquiries = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {totalCount > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+              <span className="text-xs text-slate-500 font-medium">
+                Page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
+                <span className="font-bold text-slate-800">{Math.ceil(totalCount / pageSize) || 1}</span> (Total {totalCount} inquiries)
+              </span>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                showSizeChanger
+                pageSizeOptions={["10", "20", "50", "100"]}
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} partner inquiries`}
+                size="small"
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { adminAPI } from "../services/api";
 import {
   HelpCircle,
@@ -26,8 +27,13 @@ import {
   Tag as TagIcon,
   Eye,
   X,
+  CreditCard,
+  ShieldCheck,
+  Wallet,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
-import { Modal, Select, message, Tag } from "antd";
+import { Modal, Select, message, Tag, Pagination } from "antd";
 
 const LEAD_STATUS_OPTIONS = [
   { value: "New Enquiry", label: "New Enquiry", color: "blue" },
@@ -46,37 +52,87 @@ const LEAD_STATUS_OPTIONS = [
 ];
 
 const Enquiries = () => {
+  const navigate = useNavigate();
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
+
+  // Search, Filter & Server Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({
+    total: 0,
+    paid: 0,
+    pending: 0,
+    newEnquiries: 0,
+  });
 
   // Confirmation & Email Modal State
   const [selectedEnquiryForConfirm, setSelectedEnquiryForConfirm] =
     useState(null);
   const [customMessage, setCustomMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
-
-
-  useEffect(() => {
-    fetchEnquiries();
-  }, []);
+  const handleRejectEnquiry = async (enq) => {
+    if (!enq) return;
+    try {
+      setRejecting(true);
+      await adminAPI.cancelBooking(enq._id, { reason: "Admin rejected enquiry" });
+      await adminAPI.updateBookingLeadStatus(enq._id, "Not Converted").catch(() => {});
+      message.success(`Enquiry #${enq.bookingCode || enq._id.slice(-6)} rejected & calendar dates released.`);
+      setSelectedEnquiryForConfirm(null);
+      fetchEnquiries();
+    } catch (err) {
+      console.error("Failed to reject enquiry:", err);
+      message.error(err.message || "Failed to reject enquiry.");
+    } finally {
+      setRejecting(false);
+    }
+  };
 
   const fetchEnquiries = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await adminAPI.getBookings();
+      const res = await adminAPI.getBookings({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm.trim() || undefined,
+        leadStatus: statusFilter !== "ALL" ? statusFilter : undefined,
+        paymentStatus:
+          paymentFilter === "PAID"
+            ? "PAID"
+            : paymentFilter === "REFUNDED"
+            ? "REFUNDED"
+            : paymentFilter === "PAY_LATER"
+            ? "PENDING"
+            : undefined,
+      });
       setEnquiries(res.data?.bookings || []);
+      setTotalCount(res.data?.pagination?.total || 0);
+      if (res.data?.counts) {
+        setCounts(res.data.counts);
+      }
     } catch (err) {
       console.error("Error fetching property enquiries:", err);
       setError("Could not retrieve guest enquiries.");
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchEnquiries();
+  }, [currentPage, pageSize, searchTerm, statusFilter, paymentFilter]);
+
+  const isPaidOnline = (enq) => {
+    return enq?.paymentStatus === "PAID" || enq?.status === "CONFIRMED";
   };
 
   const handleLeadStatusChange = async (id, newLeadStatus) => {
@@ -105,10 +161,15 @@ const Enquiries = () => {
             .map((r) => String(r).replace(/^room\s*/i, ""))
             .join(", ")})`
         : "";
+    const paid = isPaidOnline(enq);
     setCustomMessage(
-      `We are pleased to share the details and confirm your booking enquiry for ${
-        enq.propertyId?.title || "your stay"
-      }${roomsText}! Your requested dates are now reserved. Please complete payment within 24 hours to finalize your reservation.`
+      paid
+        ? `We are pleased to confirm your booking for ${
+            enq.propertyId?.title || "your stay"
+          }${roomsText}! Your online payment has been received and your dates are reserved.`
+        : `We are pleased to share the details and confirm your booking enquiry for ${
+            enq.propertyId?.title || "your stay"
+          }${roomsText}! Your requested dates are now reserved. Please complete payment within 24 hours to finalize your reservation.`
     );
   };
 
@@ -227,41 +288,42 @@ const Enquiries = () => {
     }
   };
 
-  const filteredEnquiries = enquiries.filter((enq) => {
-    const code = enq.bookingCode || enq._id || "";
-    const guestName = enq.customerId?.name || enq.guestInfo?.name || "";
-    const guestEmail = enq.customerId?.email || enq.guestInfo?.email || "";
-    const guestPhone = enq.customerId?.phone || enq.guestInfo?.phone || "";
-    const propTitle = enq.propertyId?.title || "";
-    const leadStatus = enq.leadStatus || "New Enquiry";
+  const getPaymentBadge = (enq) => {
+    if (isPaidOnline(enq)) {
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+            <CreditCard className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Paid Online</span>
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0 ml-0.5" />
+          </span>
+          {enq.paymentId?.gatewayPaymentId && (
+            <span className="text-[10px] text-slate-400 font-mono tracking-tight pl-1">
+              ID: {enq.paymentId.gatewayPaymentId.slice(-8)}
+            </span>
+          )}
+        </div>
+      );
+    }
 
-    const matchesSearch =
-      code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guestEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guestPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      propTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      leadStatus.toLowerCase().includes(searchTerm.toLowerCase());
+    if (enq.paymentStatus === "REFUNDED") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+          <RefreshCw className="w-3 h-3 text-rose-600 shrink-0" />
+          <span>Refunded</span>
+        </span>
+      );
+    }
 
-    const matchesStatus = statusFilter === "ALL" || leadStatus === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalCount = enquiries.length;
-  const inPipelineCount = enquiries.filter((e) =>
-    ["Called and Shared details", "Follow Up", "Follow Up 2"].includes(
-      e.leadStatus
-    )
-  ).length;
-  const convertedCount = enquiries.filter(
-    (e) => e.leadStatus === "Converted"
-  ).length;
-  const lostCount = enquiries.filter((e) =>
-    ["Low budget", "No Response", "Junk", "Not Converted"].includes(
-      e.leadStatus
-    )
-  ).length;
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>Pay Later / Unpaid</span>
+        </span>
+      </div>
+    );
+  };
 
   const leadStatusFilterOptions = [
     {
@@ -273,10 +335,28 @@ const Enquiries = () => {
       value: opt.value,
       label: opt.label,
       color: opt.color,
-      count: enquiries.filter(
-        (e) => (e.leadStatus || "New Enquiry") === opt.value
-      ).length,
     })),
+  ];
+
+  const paymentFilterOptions = [
+    { value: "ALL", label: "All Payment Statuses", count: totalCount },
+    {
+      value: "PAID",
+      label: "Paid Online (Razorpay)",
+      count: counts.paid,
+      color: "success",
+    },
+    {
+      value: "PAY_LATER",
+      label: "Pay Later / Unpaid",
+      count: counts.pending,
+      color: "warning",
+    },
+    {
+      value: "REFUNDED",
+      label: "Refunded",
+      color: "error",
+    },
   ];
 
   return (
@@ -289,8 +369,7 @@ const Enquiries = () => {
             <span>Enquiries & Leads Management (CRM)</span>
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Track host enquiry pipeline states, log follow-ups, and send custom
-            booking confirmations directly to guests.
+            Track guest inquiries, verify online payment statuses (Razorpay vs Pay Later), log follow-ups, and send confirmations.
           </p>
         </div>
 
@@ -309,6 +388,7 @@ const Enquiries = () => {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Enquiries */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -323,64 +403,94 @@ const Enquiries = () => {
           </div>
         </div>
 
+        {/* Paid Online */}
+        <div
+          onClick={() => {
+            setPaymentFilter(paymentFilter === "PAID" ? "ALL" : "PAID");
+            setCurrentPage(1);
+          }}
+          className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-emerald-300 ${
+            paymentFilter === "PAID" ? "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/20" : "border-slate-200"
+          }`}
+        >
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                Paid Online
+              </span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full">
+                Razorpay
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold text-emerald-700 mt-1">
+              {counts.paid || 0}
+            </h3>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
+            <CreditCard className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Pay Later / Unpaid */}
+        <div
+          onClick={() => {
+            setPaymentFilter(paymentFilter === "PAY_LATER" ? "ALL" : "PAY_LATER");
+            setCurrentPage(1);
+          }}
+          className={`bg-white border rounded-2xl p-5 flex items-center justify-between shadow-xs cursor-pointer transition-all hover:border-amber-300 ${
+            paymentFilter === "PAY_LATER" ? "ring-2 ring-amber-500 border-amber-500 bg-amber-50/20" : "border-slate-200"
+          }`}
+        >
+          <div>
+            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
+              Pay Later / Unpaid
+            </span>
+            <h3 className="text-2xl font-bold text-amber-700 mt-1">
+              {counts.pending || 0}
+            </h3>
+          </div>
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
+            <Clock className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Converted Bookings */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
           <div>
             <span className="text-xs font-bold text-sky-700 uppercase tracking-wider">
               In Follow-Up
             </span>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {inPipelineCount}
+              {counts.inPipeline || 0}
             </h3>
           </div>
           <div className="p-3 bg-sky-50 text-sky-600 rounded-xl border border-sky-100">
             <PhoneCall className="w-5 h-5" />
           </div>
         </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-              Converted Bookings
-            </span>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {convertedCount}
-            </h3>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">
-              Closed / Lost / Junk
-            </span>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">
-              {lostCount}
-            </h3>
-          </div>
-          <div className="p-3 bg-rose-50 text-rose-600 rounded-xl border border-rose-100">
-            <UserX className="w-5 h-5" />
-          </div>
-        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
-        <div className="relative w-full md:w-80">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col lg:flex-row items-center justify-between gap-4 shadow-xs">
+        <div className="relative w-full lg:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search code, guest, phone..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-8 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all"
           />
           {searchTerm && (
             <button
               type="button"
-              onClick={() => setSearchTerm("")}
+              onClick={() => {
+                setSearchTerm("");
+                setCurrentPage(1);
+              }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
               title="Clear search"
             >
@@ -389,7 +499,37 @@ const Enquiries = () => {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+          {/* Payment Filter */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+              Payment:
+            </span>
+            <Select
+              value={paymentFilter}
+              onChange={(val) => {
+                setPaymentFilter(val || "ALL");
+                setCurrentPage(1);
+              }}
+              className="w-full sm:w-52"
+              options={paymentFilterOptions}
+              optionRender={(option) => (
+                <div className="flex items-center justify-between gap-2 w-full py-0.5">
+                  <span className="font-semibold text-slate-700 text-xs truncate">
+                    {option.data.label}
+                  </span>
+                  {option.data.count !== undefined && (
+                    <span className="text-[11px] text-slate-500 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                      {option.data.count}
+                    </span>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+
+          {/* Lead Status Filter */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Filter className="w-4 h-4 text-slate-400 shrink-0" />
             <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
@@ -397,8 +537,11 @@ const Enquiries = () => {
             </span>
             <Select
               value={statusFilter}
-              onChange={(val) => setStatusFilter(val || "ALL")}
-              className="w-full sm:w-56"
+              onChange={(val) => {
+                setStatusFilter(val || "ALL");
+                setCurrentPage(1);
+              }}
+              className="w-full sm:w-52"
               options={leadStatusFilterOptions}
               optionRender={(option) => (
                 <div className="flex items-center justify-between gap-2 w-full py-0.5">
@@ -413,20 +556,24 @@ const Enquiries = () => {
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] text-slate-400 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                    {option.data.count}
-                  </span>
+                  {option.data.count !== undefined && (
+                    <span className="text-[11px] text-slate-400 bg-slate-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                      {option.data.count}
+                    </span>
+                  )}
                 </div>
               )}
             />
           </div>
 
-          {(statusFilter !== "ALL" || searchTerm) && (
+          {(statusFilter !== "ALL" || paymentFilter !== "ALL" || searchTerm) && (
             <button
               type="button"
               onClick={() => {
                 setStatusFilter("ALL");
+                setPaymentFilter("ALL");
                 setSearchTerm("");
+                setCurrentPage(1);
               }}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200 transition-all cursor-pointer"
               title="Reset search and filters"
@@ -437,7 +584,7 @@ const Enquiries = () => {
           )}
 
           <div className="text-xs text-slate-500 font-medium pl-1">
-            Showing <span className="font-bold text-slate-900">{filteredEnquiries.length}</span> of{" "}
+            Showing <span className="font-bold text-slate-900">{enquiries.length}</span> of{" "}
             <span className="font-bold text-slate-900">{totalCount}</span>
           </div>
         </div>
@@ -465,14 +612,14 @@ const Enquiries = () => {
             Retry
           </button>
         </div>
-      ) : filteredEnquiries.length === 0 ? (
+      ) : enquiries.length === 0 ? (
         <div className="py-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs">
           <HelpCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900">
             No matching enquiries found
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            Try adjusting your search query or status filter.
+            Try adjusting your search query, payment filter, or status filter.
           </p>
         </div>
       ) : (
@@ -481,17 +628,17 @@ const Enquiries = () => {
             <table className="w-full text-left text-sm text-slate-600 border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-4 px-6">Guest</th>
-                  <th className="py-4 px-6">Date</th>
-                  <th className="py-4 px-6">Property</th>
-                  <th className="py-4 px-6">Stay Dates</th>
-                  <th className="py-4 px-6">Est. Price</th>
-                  <th className="py-4 px-6">Lead Status</th>
-                  <th className="py-4 px-6 text-center">Action</th>
+                  <th className="py-4 px-5">Guest & Inquiry</th>
+                  <th className="py-4 px-4">Created Date</th>
+                  <th className="py-4 px-4">Property</th>
+                  <th className="py-4 px-4">Stay Dates</th>
+                  <th className="py-4 px-4">Payment & Amount</th>
+                  <th className="py-4 px-5">Lead Status</th>
+                  <th className="py-4 px-5 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredEnquiries.map((enq) => {
+                {enquiries.map((enq) => {
                   const guestName =
                     enq.customerId?.name || enq.guestInfo?.name || "Guest";
                   const guestEmail =
@@ -503,16 +650,27 @@ const Enquiries = () => {
                     enq.guestInfo?.notes ||
                     enq.guestInfo?.specialRequests;
                   const currentLeadStatus = enq.leadStatus || "New Enquiry";
+                  const paid = isPaidOnline(enq);
 
                   return (
                     <tr
                       key={enq._id}
-                      className="hover:bg-slate-50/80 transition-colors"
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        paid ? "bg-emerald-50/15" : ""
+                      }`}
                     >
                       {/* Ref Code & Guest */}
-                      <td className="py-4 px-3">
-                        <div className="font-mono font-bold text-brand-600 text-xs">
-                          #{enq.bookingCode || enq._id?.slice(-6).toUpperCase()}
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-brand-600 text-xs">
+                            #{enq.bookingCode || enq._id?.slice(-6).toUpperCase()}
+                          </span>
+                          {paid && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              PAID
+                            </span>
+                          )}
                         </div>
                         <div className="text-slate-900 font-bold text-sm mt-0.5">
                           {guestName}
@@ -544,8 +702,8 @@ const Enquiries = () => {
                         )}
                       </td>
 
-                      {/* Target Property */}
-                      <td className="py-4 px-2 max-w-40">
+                      {/* Created Date */}
+                      <td className="py-4 px-4 max-w-40">
                         <div className="flex items-start gap-2">
                           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                           <div className="truncate">
@@ -559,7 +717,9 @@ const Enquiries = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-3 max-w-55">
+
+                      {/* Target Property */}
+                      <td className="py-4 px-4 max-w-55">
                         <div className="flex items-start gap-2.5">
                           <Home className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
                           <div className="truncate">
@@ -586,7 +746,7 @@ const Enquiries = () => {
                       </td>
 
                       {/* Stay Dates */}
-                      <td className="py-4 px-6 text-xs">
+                      <td className="py-4 px-4 text-xs">
                         <div className="flex items-center gap-1.5 text-slate-900 font-medium">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           <span>
@@ -602,31 +762,34 @@ const Enquiries = () => {
                         </div>
                       </td>
 
-                      {/* Est. Price */}
-                      <td className="py-4 px-6 font-bold text-slate-900 text-sm">
-                        ₹{enq.totalAmount?.toLocaleString("en-IN") || "0"}
+                      {/* Payment Status & Amount */}
+                      <td className="py-4 px-4">
+                        <div className="font-bold text-slate-900 text-sm mb-1">
+                          ₹{enq.totalAmount?.toLocaleString("en-IN") || "0"}
+                        </div>
+                        {getPaymentBadge(enq)}
                       </td>
 
                       {/* Lead Status (CRM) Selector */}
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-5">
                         <Select
                           value={currentLeadStatus}
                           onChange={(val) =>
                             handleLeadStatusChange(enq._id, val)
                           }
                           disabled={actionLoading === enq._id}
-                          className="w-52 custom-select-sm"
+                          className="w-48 custom-select-sm"
                           options={LEAD_STATUS_OPTIONS}
                         />
                       </td>
 
-                      {/* Action - Send Confirmation */}
-                      <td className="py-4 px-6 text-center">
+                      {/* Action - View / Send Confirmation */}
+                      <td className="py-4 px-5 text-center">
                         <button
                           type="button"
                           onClick={() => handleOpenConfirmModal(enq)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs cursor-pointer shadow-xs transition-all hover:scale-105"
-                          title="Send Confirmation Email & Lock Dates"
+                          title="View Details & Confirm"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>View</span>
@@ -638,10 +801,33 @@ const Enquiries = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {totalCount > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+              <span className="text-xs text-slate-500 font-medium">
+                Page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
+                <span className="font-bold text-slate-800">{Math.ceil(totalCount / pageSize) || 1}</span> (Total {totalCount} enquiries)
+              </span>
+              <Pagination
+                current={currentPage}
+                pageSize={pageSize}
+                total={totalCount}
+                showSizeChanger
+                pageSizeOptions={["10", "20", "50", "100"]}
+                onChange={(page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size);
+                }}
+                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} enquiries`}
+                size="small"
+              />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Confirmation & Email Modal */}
+      {/* Confirmation & Details Modal */}
       <Modal
         open={!!selectedEnquiryForConfirm}
         onCancel={() => {
@@ -650,22 +836,73 @@ const Enquiries = () => {
         }}
         footer={null}
         centered
-        width={580}
+        width={620}
       >
         <div className="p-4 space-y-5 text-left font-sans">
-          <div className="flex items-center gap-3 text-emerald-600">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+          <div className="flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
+              isPaidOnline(selectedEnquiryForConfirm)
+                ? "bg-emerald-100 text-emerald-600"
+                : "bg-blue-100 text-blue-600"
+            }`}>
+              {isPaidOnline(selectedEnquiryForConfirm) ? (
+                <ShieldCheck className="w-6 h-6 text-emerald-600" />
+              ) : (
+                <CheckCircle2 className="w-6 h-6 text-blue-600" />
+              )}
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">
-                Send Confirmation & Lock Dates
+                {isPaidOnline(selectedEnquiryForConfirm)
+                  ? "Paid Online Booking Details"
+                  : "Send Confirmation & Lock Dates"}
               </h3>
               <p className="text-xs text-slate-500">
-                Lock stay dates and notify guest via email
+                {isPaidOnline(selectedEnquiryForConfirm)
+                  ? "Payment received via Razorpay online checkout"
+                  : "Lock stay dates and notify guest via email"}
               </p>
             </div>
           </div>
+
+          {/* Payment Status Banner */}
+          {isPaidOnline(selectedEnquiryForConfirm) ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 rounded-xl text-emerald-700 shrink-0 mt-0.5">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div className="text-xs space-y-0.5">
+                <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span>Payment Verified: Paid Online (Razorpay)</span>
+                  <span className="bg-emerald-200 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                    SUCCESS
+                  </span>
+                </div>
+                <p className="text-emerald-700 text-[11px]">
+                  Guest has already paid ₹{selectedEnquiryForConfirm?.totalAmount?.toLocaleString("en-IN")} in full through online gateway checkout.
+                </p>
+                {selectedEnquiryForConfirm?.paymentId?.gatewayPaymentId && (
+                  <p className="text-[10px] font-mono text-emerald-800 font-semibold pt-0.5">
+                    Razorpay Payment ID: {selectedEnquiryForConfirm.paymentId.gatewayPaymentId}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3">
+              <div className="p-2 bg-amber-100 rounded-xl text-amber-700 shrink-0 mt-0.5">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="text-xs space-y-0.5">
+                <div className="font-bold text-amber-900">
+                  Payment Status: Pay Later / Unpaid
+                </div>
+                <p className="text-amber-700 text-[11px]">
+                  Total due: ₹{selectedEnquiryForConfirm?.totalAmount?.toLocaleString("en-IN")}. Guest chose to pay later or complete payment on confirmation.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs text-slate-700">
             <div className="grid grid-cols-2 gap-2">
@@ -688,7 +925,7 @@ const Enquiries = () => {
                 </span>
               </p>
               <p>
-                <strong className="text-slate-900">Total Payable:</strong> ₹
+                <strong className="text-slate-900">Total Amount:</strong> ₹
                 {selectedEnquiryForConfirm?.totalAmount?.toLocaleString(
                   "en-IN"
                 )}
@@ -711,53 +948,82 @@ const Enquiries = () => {
             <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <MessageSquareQuote className="w-4 h-4 text-brand-600" />
               <span>
-                Personal Note / Message to Guest (Included in Confirmation
-                Email):
+                Personal Note / Message to Guest (Included in Email):
               </span>
             </label>
             <textarea
-              rows={4}
+              rows={3}
               value={customMessage}
               onChange={(e) => setCustomMessage(e.target.value)}
               placeholder="Enter a message to the guest that will be delivered in their confirmation email..."
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition-all resize-none"
             />
-            <p className="text-[11px] text-slate-400">
-              The guest will receive a formal confirmation email containing all
-              stay specs, this note, and a direct link to complete their
-              payment.
-            </p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedEnquiryForConfirm(null);
-                setCustomMessage("");
-              }}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={confirming}
-              onClick={handleSendConfirmation}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 transition-all hover:scale-105"
-            >
-              {confirming ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Locking Dates & Sending Mail...</span>
-                </>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <div>
+              {isPaidOnline(selectedEnquiryForConfirm) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = selectedEnquiryForConfirm?.bookingCode || "";
+                    setSelectedEnquiryForConfirm(null);
+                    navigate(`/payments?search=${encodeURIComponent(code)}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-all"
+                  title="Issue a manual refund for this paid transaction on the Payments page"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Refund via Payments</span>
+                </button>
               ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send Confirmation Email & Lock Dates</span>
-                </>
+                <button
+                  type="button"
+                  disabled={rejecting || actionLoading}
+                  onClick={() => handleRejectEnquiry(selectedEnquiryForConfirm)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+                  title="Reject this enquiry and release dates"
+                >
+                  {rejecting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                  )}
+                  <span>Reject Enquiry</span>
+                </button>
               )}
-            </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEnquiryForConfirm(null);
+                  setCustomMessage("");
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer transition-all"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                disabled={confirming}
+                onClick={handleSendConfirmation}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 transition-all hover:scale-105"
+              >
+                {confirming ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Locking Dates & Sending Mail...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isPaidOnline(selectedEnquiryForConfirm) ? "Send Booking Details Email" : "Send Confirmation Email & Lock Dates"}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>

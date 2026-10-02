@@ -259,16 +259,38 @@ const Bookings = () => {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span
-                        className={`text-[10px] px-2.5 py-1 border rounded-full font-bold uppercase tracking-wider ${getStatusBadge(
-                          bk.status
-                        )}`}
-                      >
-                        {bk.status}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span
+                          className={`text-[10px] px-2.5 py-1 border rounded-full font-bold uppercase tracking-wider w-fit ${getStatusBadge(
+                            bk.status
+                          )}`}
+                        >
+                          {bk.status}
+                        </span>
+                        {bk.paymentStatus === "PAID" || bk.status === "CONFIRMED" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md w-fit">
+                            <span>Paid Online (Razorpay)</span>
+                          </span>
+                        ) : bk.paymentStatus === "REFUNDED" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md w-fit">
+                            <span>Refunded</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md w-fit">
+                            <span>Pay Later / Unpaid</span>
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-4 text-right text-white font-semibold text-base">
-                      ₹{bk.totalAmount?.toLocaleString("en-IN") || "0"}
+                    <td className="p-4 text-right">
+                      <div className="text-white font-semibold text-base">
+                        ₹{bk.totalAmount?.toLocaleString("en-IN") || "0"}
+                      </div>
+                      {bk.paymentId?.gatewayPaymentId && (
+                        <div className="text-[10px] font-mono text-gray-500">
+                          {bk.paymentId.gatewayPaymentId.slice(-8)}
+                        </div>
+                      )}
                     </td>
                     <td className="p-4 pr-6 text-center">
                       {bk.status !== "CANCELLED" ? (

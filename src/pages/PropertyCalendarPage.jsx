@@ -9,6 +9,7 @@ import {
   Input,
   Select,
   Tooltip,
+  Modal,
 } from "antd";
 import {
   ArrowLeft,
@@ -43,6 +44,8 @@ import {
   Home,
   CheckCircle2,
   XCircle,
+  Zap,
+  Shield,
 } from "lucide-react";
 import { adminAPI } from "../services/api";
 import dayjs from "dayjs";
@@ -137,6 +140,7 @@ const PropertyCalendarPage = () => {
   const [customRateInput, setCustomRateInput] = useState("");
   const [customExtraAdultFeeInput, setCustomExtraAdultFeeInput] = useState("");
   const [customExtraChildFeeInput, setCustomExtraChildFeeInput] = useState("");
+  const [customMinNightsInput, setCustomMinNightsInput] = useState("");
   const [customRateStatus, setCustomRateStatus] = useState("open"); // "open" | "closed"
   const [customRateReason, setCustomRateReason] =
     useState("Custom rate update");
@@ -147,6 +151,18 @@ const PropertyCalendarPage = () => {
     useState("");
   const [singleDateExtraChildPrice, setSingleDateExtraChildPrice] =
     useState("");
+  const [singleDateMinNights, setSingleDateMinNights] = useState("");
+  const [rangeMinNights, setRangeMinNights] = useState("");
+
+  // Dedicated Date-Wise Stay Restriction Modal State
+  const [isDateRestrictionModalOpen, setIsDateRestrictionModalOpen] = useState(false);
+  const [modalRestrictionRange, setModalRestrictionRange] = useState(null);
+  const [modalRestrictionNights, setModalRestrictionNights] = useState(2);
+  const [modalCustomNightsInput, setModalCustomNightsInput] = useState("");
+
+  // Header Custom Min Nights Input
+  const [headerCustomMinNightsInput, setHeaderCustomMinNightsInput] = useState("");
+  const [drawerMultiMinNights, setDrawerMultiMinNights] = useState("");
 
   const isMultiDayRange =
     selectionRange &&
@@ -199,6 +215,187 @@ const PropertyCalendarPage = () => {
   }, [property]);
 
   const totalInventory = propertyRooms.length;
+
+  const handleToggleInstantBook = async (newValue) => {
+    try {
+      setActionLoading(true);
+      await adminAPI.updateProperty(id, { instantBook: newValue });
+      setProperty((prev) => ({ ...prev, instantBook: newValue }));
+      message.success(
+        newValue
+          ? "Property booking mode set to 'Instant Book'! Guests can pay online to immediately lock calendar dates."
+          : "Property booking mode set to 'Host Approval'! Guests will submit an enquiry awaiting Host/Admin approval."
+      );
+    } catch (err) {
+      console.error("Error updating booking mode:", err);
+      message.error(err.message || "Failed to update property booking mode.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpdatePropertyBaseMinNights = async (newVal) => {
+    if (!newVal || isNaN(Number(newVal)) || Number(newVal) < 1) return;
+    try {
+      setActionLoading(true);
+      await adminAPI.updateCustomRates(id, { minNights: Number(newVal) });
+      setProperty((prev) => ({ ...prev, minNights: Number(newVal) }));
+      setHeaderCustomMinNightsInput("");
+      message.success(
+        `Default minimum stay set to ${newVal} night${Number(newVal) > 1 ? "s" : ""}!`
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Error updating default min stay:", err);
+      message.error(err.message || "Failed to update default minimum stay.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleGlobalResetMinNights = async () => {
+    try {
+      setActionLoading(true);
+      const res = await adminAPI.updateCustomRates(id, {
+        resetAllMinNights: true,
+        minNights: 1,
+      });
+      setProperty((prev) => ({ ...prev, minNights: 1 }));
+      setSingleDateMinNights("");
+      setRangeMinNights("");
+      setCustomMinNightsInput("");
+      message.success(
+        res.message || "All date-specific minimum stay rules reset to property default (1 Night)!"
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Error globally resetting min stay:", err);
+      message.error(err.message || "Failed to globally reset minimum stay rules.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApplyModalRestriction = async () => {
+    if (!modalRestrictionRange || !modalRestrictionRange[0] || !modalRestrictionRange[1]) {
+      message.error("Please select a valid date range first.");
+      return;
+    }
+    const finalNights = modalCustomNightsInput !== "" && !isNaN(Number(modalCustomNightsInput))
+      ? Number(modalCustomNightsInput)
+      : Number(modalRestrictionNights) || 2;
+
+    if (finalNights < 1) {
+      message.error("Restriction nights must be at least 1.");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const startDate = modalRestrictionRange[0].format("YYYY-MM-DD");
+      const endDate = modalRestrictionRange[1].format("YYYY-MM-DD");
+      const res = await adminAPI.updateCustomRates(id, {
+        startDate,
+        endDate,
+        minNights: finalNights,
+      });
+      message.success(res.message || `Set ${finalNights} night stay restriction for selected date range!`);
+      setIsDateRestrictionModalOpen(false);
+      setModalRestrictionRange(null);
+      setModalCustomNightsInput("");
+      fetchData();
+    } catch (err) {
+      message.error(err.message || "Failed to set date restriction.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetModalRestriction = async () => {
+    if (!modalRestrictionRange || !modalRestrictionRange[0] || !modalRestrictionRange[1]) {
+      message.error("Please select a date range to reset.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const startDate = modalRestrictionRange[0].format("YYYY-MM-DD");
+      const endDate = modalRestrictionRange[1].format("YYYY-MM-DD");
+      const res = await adminAPI.updateCustomRates(id, {
+        startDate,
+        endDate,
+        minNights: null,
+      });
+      message.success(res.message || "Reset stay restriction back to baseline for selected date range!");
+      setIsDateRestrictionModalOpen(false);
+      setModalRestrictionRange(null);
+      fetchData();
+    } catch (err) {
+      message.error(err.message || "Failed to reset date restriction.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApplyDrawerMultiMinNights = async (nightsVal) => {
+    if (!selectedCustomDates || selectedCustomDates.length === 0) {
+      message.error("No dates selected.");
+      return;
+    }
+    const val =
+      nightsVal !== undefined && nightsVal !== null && !isNaN(Number(nightsVal))
+        ? Number(nightsVal)
+        : Number(drawerMultiMinNights);
+
+    if (!val || isNaN(val) || val < 1) {
+      message.error("Please enter a valid number of nights (at least 1).");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await adminAPI.updateCustomRates(id, {
+        dates: selectedCustomDates,
+        minNights: val,
+      });
+      message.success(
+        res.message ||
+          `Set stay restriction: Minimum ${val} nights required for ${selectedCustomDates.length} selected dates!`
+      );
+      setDrawerMultiMinNights("");
+      fetchData();
+    } catch (err) {
+      console.error("Error setting multi-date min nights:", err);
+      message.error(err.message || "Failed to set stay restriction.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApplyMultiCustomMinNights = handleApplyDrawerMultiMinNights;
+
+  const handleResetDrawerMultiMinNights = async () => {
+    if (!selectedCustomDates || selectedCustomDates.length === 0) return;
+    setActionLoading(true);
+    try {
+      const res = await adminAPI.updateCustomRates(id, {
+        dates: selectedCustomDates,
+        minNights: null,
+      });
+      message.success(
+        res.message ||
+          `Reset stay restriction back to baseline for ${selectedCustomDates.length} dates!`
+      );
+      setDrawerMultiMinNights("");
+      fetchData();
+    } catch (err) {
+      console.error("Error resetting stay restriction:", err);
+      message.error(err.message || "Failed to reset stay restriction.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetMultiCustomMinNights = handleResetDrawerMultiMinNights;
 
   const handleUpdateCustomRates = async () => {
     if (selectedCustomDates && selectedCustomDates.length > 1) {
@@ -287,12 +484,20 @@ const PropertyCalendarPage = () => {
         payload.extraKidFeeOverride = Number(childFeeVal);
         payload.extraKidFee = Number(childFeeVal);
       }
+      if (
+        customMinNightsInput !== "" &&
+        customMinNightsInput !== undefined &&
+        !isNaN(Number(customMinNightsInput))
+      ) {
+        payload.minNights = Number(customMinNightsInput);
+      }
 
       const res = await adminAPI.updateCustomRates(id, payload);
       message.success(res.message || "Custom rates updated successfully!");
       setCustomRateInput("");
       setCustomExtraAdultFeeInput("");
       setCustomExtraChildFeeInput("");
+      setCustomMinNightsInput("");
       fetchData();
     } catch (err) {
       console.error("Error updating custom rates:", err);
@@ -410,6 +615,79 @@ const PropertyCalendarPage = () => {
     }
   };
 
+  const handleTopApplyStayRestriction = async () => {
+    const effectiveRange =
+      customRateRange &&
+        customRateRange.length === 2 &&
+        customRateRange[0] &&
+        customRateRange[1]
+        ? customRateRange
+        : selectionRange &&
+          selectionRange.length === 2 &&
+          selectionRange[0] &&
+          selectionRange[1]
+          ? selectionRange
+          : selectedCustomDates && selectedCustomDates.length > 0
+            ? selectedCustomDates
+            : selectedDate
+              ? [selectedDate, selectedDate]
+              : null;
+
+    if (!effectiveRange) {
+      message.warning(
+        "Please select a date range on the calendar or using the Date Range picker first."
+      );
+      return;
+    }
+
+    if (
+      customMinNightsInput === "" ||
+      customMinNightsInput === undefined ||
+      isNaN(Number(customMinNightsInput)) ||
+      Number(customMinNightsInput) < 1
+    ) {
+      message.warning(
+        "Please enter the required Min Stay nights (e.g. 2, 3, 5) in the Min Stay input field."
+      );
+      return;
+    }
+
+    const minNightsVal = Number(customMinNightsInput);
+
+    try {
+      setActionLoading(true);
+      let payload;
+      if (Array.isArray(effectiveRange) && typeof effectiveRange[0] === "string") {
+        payload = {
+          dates: effectiveRange,
+          minNights: minNightsVal,
+          reason: customRateReason || `Min stay restriction (${minNightsVal}N)`,
+        };
+      } else {
+        const start = dayjs(effectiveRange[0]);
+        const end = dayjs(effectiveRange[1]);
+        payload = {
+          startDate: start.format("YYYY-MM-DD"),
+          endDate: end.format("YYYY-MM-DD"),
+          daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : [0, 1, 2, 3, 4, 5, 6],
+          minNights: minNightsVal,
+          reason: customRateReason || `Min stay restriction (${minNightsVal}N) for ${start.format("D MMM")} - ${end.format("D MMM")}`,
+        };
+      }
+
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(
+        res.message || `Set stay restriction: Minimum ${minNightsVal} nights required for selected dates!`
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Error setting date-wise stay restriction:", err);
+      message.error(err.message || "Failed to set stay restriction.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSaveSingleDateCustomRate = async () => {
     if (!selectedDate) {
       message.warning("Please select a date on the calendar first.");
@@ -420,10 +698,12 @@ const PropertyCalendarPage = () => {
       (singleDateExtraAdultPrice === "" ||
         singleDateExtraAdultPrice === undefined) &&
       (singleDateExtraChildPrice === "" ||
-        singleDateExtraChildPrice === undefined)
+        singleDateExtraChildPrice === undefined) &&
+      (singleDateMinNights === "" ||
+        singleDateMinNights === undefined)
     ) {
       message.warning(
-        "Please enter at least one rate or fee override to save."
+        "Please enter at least one rate, fee or minimum stay override to save."
       );
       return;
     }
@@ -461,15 +741,83 @@ const PropertyCalendarPage = () => {
         payload.extraKidFeeOverride = Number(singleDateExtraChildPrice);
         payload.extraKidFee = Number(singleDateExtraChildPrice);
       }
+      if (
+        singleDateMinNights !== "" &&
+        singleDateMinNights !== undefined &&
+        !isNaN(Number(singleDateMinNights))
+      ) {
+        payload.minNights = Number(singleDateMinNights);
+      }
       const res = await adminAPI.updateCustomRates(id, payload);
-      message.success(res.message || "Single date rates and fees updated!");
+      message.success(res.message || "Single date rates, stay rules and fees updated!");
       setSingleDateCustomPrice("");
       setSingleDateExtraAdultPrice("");
       setSingleDateExtraChildPrice("");
+      setSingleDateMinNights("");
       fetchData();
     } catch (err) {
       console.error("Error updating single date rate:", err);
       message.error(err.message || "Failed to update date rate.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetMinNightsSingleDate = async () => {
+    if (!selectedDate) return;
+    const dateStr = selectedDate.format("YYYY-MM-DD");
+    try {
+      setActionLoading(true);
+      const payload = {
+        startDate: dateStr,
+        endDate: dateStr,
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        minNights: null,
+        reason: "Reset min stay to base",
+      };
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(res.message || `Reset minimum stay rule to base for ${dateStr}!`);
+      setSingleDateMinNights("");
+      fetchData();
+    } catch (err) {
+      console.error("Error resetting min stay:", err);
+      message.error(err.message || "Failed to reset minimum stay.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetMinNightsRange = async () => {
+    const effectiveRange =
+      customRateRange && customRateRange.length === 2 && customRateRange[0] && customRateRange[1]
+        ? customRateRange
+        : selectionRange && selectionRange.length === 2 && selectionRange[0] && selectionRange[1]
+          ? selectionRange
+          : selectedDate
+            ? [selectedDate, selectedDate]
+            : null;
+
+    if (!effectiveRange) {
+      message.warning("Please select a date range first.");
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const payload = {
+        startDate: dayjs(effectiveRange[0]).format("YYYY-MM-DD"),
+        endDate: dayjs(effectiveRange[1]).format("YYYY-MM-DD"),
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        minNights: null,
+        reason: "Reset min stay to base for range",
+      };
+      const res = await adminAPI.updateCustomRates(id, payload);
+      message.success(res.message || "Reset minimum stay rule to base for selected range!");
+      setRangeMinNights("");
+      setCustomMinNightsInput("");
+      fetchData();
+    } catch (err) {
+      console.error("Error resetting range min stay:", err);
+      message.error(err.message || "Failed to reset range minimum stay.");
     } finally {
       setActionLoading(false);
     }
@@ -487,13 +835,15 @@ const PropertyCalendarPage = () => {
         priceOverride: null,
         extraAdultFeeOverride: null,
         extraChildFeeOverride: null,
+        minNights: null,
         reason: "Reset custom rates to base",
       };
       const res = await adminAPI.updateCustomRates(id, payload);
-      message.success(res.message || "Custom rates and fees reset to base!");
+      message.success(res.message || "Custom rates, stay rules and fees reset to base!");
       setSingleDateCustomPrice("");
       setSingleDateExtraAdultPrice("");
       setSingleDateExtraChildPrice("");
+      setSingleDateMinNights("");
       fetchData();
     } catch (err) {
       console.error("Error clearing custom rates:", err);
@@ -820,13 +1170,30 @@ const PropertyCalendarPage = () => {
             ? String(rateRec.extraChildFeeOverride)
             : ""
         );
+        setSingleDateMinNights(
+          rateRec.minNights !== undefined && rateRec.minNights !== null
+            ? String(rateRec.minNights)
+            : ""
+        );
       } else {
         setSingleDateCustomPrice("");
         setSingleDateExtraAdultPrice("");
         setSingleDateExtraChildPrice("");
+        setSingleDateMinNights("");
       }
     }
-  }, [isDrawerOpen, selectedDate, isMultiDayRange, availabilities]);
+
+    if (isDrawerOpen && selectedCustomDates && selectedCustomDates.length > 0) {
+      const firstDateStr = selectedCustomDates[0];
+      const records = getRecordsForDate(firstDateStr);
+      const matchWithMin = records.find((r) => typeof r.minNights === "number" && r.minNights > 0);
+      if (matchWithMin) {
+        setDrawerMultiMinNights(String(matchWithMin.minNights));
+      } else {
+        setDrawerMultiMinNights("");
+      }
+    }
+  }, [isDrawerOpen, selectedDate, isMultiDayRange, selectedCustomDates, availabilities]);
 
   // Export iCal URL
   const exportICalUrl = `https://roamigo-backend.in/api/v1/properties/${id}/calendar.ics`;
@@ -1177,6 +1544,13 @@ const PropertyCalendarPage = () => {
         payload.extraKidFeeOverride = Number(childFeeVal);
         payload.extraKidFee = Number(childFeeVal);
       }
+      if (
+        customMinNightsInput !== "" &&
+        customMinNightsInput !== undefined &&
+        !isNaN(Number(customMinNightsInput))
+      ) {
+        payload.minNights = Number(customMinNightsInput);
+      }
 
       const res = await adminAPI.updateCustomRates(id, payload);
       message.success(
@@ -1187,6 +1561,7 @@ const PropertyCalendarPage = () => {
       setCustomRateInput("");
       setCustomExtraAdultFeeInput("");
       setCustomExtraChildFeeInput("");
+      setCustomMinNightsInput("");
       fetchData();
     } catch (err) {
       console.error("Error updating custom rates for selected dates:", err);
@@ -1259,6 +1634,7 @@ const PropertyCalendarPage = () => {
         priceOverride: null,
         extraAdultFeeOverride: null,
         extraChildFeeOverride: null,
+        minNights: null,
         reason: "Reset custom rates to base",
       };
       const res = await adminAPI.updateCustomRates(id, payload);
@@ -1359,10 +1735,14 @@ const PropertyCalendarPage = () => {
       rangeExtraChildPrice !== "" &&
       rangeExtraChildPrice !== undefined &&
       !isNaN(Number(rangeExtraChildPrice));
+    const hasMinNights =
+      rangeMinNights !== "" &&
+      rangeMinNights !== undefined &&
+      !isNaN(Number(rangeMinNights));
 
-    if (!hasPrice && !hasExtraAdult && !hasExtraChild) {
+    if (!hasPrice && !hasExtraAdult && !hasExtraChild && !hasMinNights) {
       message.warning(
-        "Please enter at least one rate or fee override to save."
+        "Please enter at least one rate, stay rule, or fee override to save."
       );
       return;
     }
@@ -1391,12 +1771,16 @@ const PropertyCalendarPage = () => {
         payload.extraKidFeeOverride = Number(rangeExtraChildPrice);
         payload.extraKidFee = Number(rangeExtraChildPrice);
       }
+      if (hasMinNights) {
+        payload.minNights = Number(rangeMinNights);
+      }
 
       const res = await adminAPI.updateCustomRates(id, payload);
-      message.success(res.message || "Rates updated for selected range!");
+      message.success(res.message || "Rates & stay rules updated for selected range!");
       setRangeCustomPrice("");
       setRangeExtraAdultPrice("");
       setRangeExtraChildPrice("");
+      setRangeMinNights("");
       setIsDrawerOpen(false);
       fetchData();
     } catch (err) {
@@ -1588,6 +1972,22 @@ const PropertyCalendarPage = () => {
 
           {/* Badges */}
           <div className="flex items-center gap-1 flex-wrap justify-end">
+            {(() => {
+              const cellMinNights =
+                dayRecords.find(
+                  (r) => typeof r.minNights === "number" && r.minNights > 0
+                )?.minNights || property?.minNights || 1;
+              return cellMinNights > 1 && !areAllRoomsBlocked ? (
+                <span
+                  className="bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+                  title={`Minimum ${cellMinNights} Nights Stay Required`}
+                >
+                  <Clock className="w-2.5 h-2.5" />
+                  <span>{cellMinNights}N Min</span>
+                </span>
+              ) : null;
+            })()}
+
             {usedRoomsCount > 0 && !areAllRoomsBlocked && (
               <span
                 className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border ${usedRoomsCount >= totalRoomsCount
@@ -1616,13 +2016,13 @@ const PropertyCalendarPage = () => {
               </span>
             )}
             {/* {hasOverride && !areAllRoomsBlocked && !isBooking && !isICal && (
-              <span
-                className="bg-emerald-50 text-emerald-700 border border-emerald-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
-                title="Custom Rate Override Active"
-              >
-                <span>₹ Custom</span>
-              </span>
-            )} */}
+                <span
+                  className="bg-emerald-50 text-emerald-700 border border-emerald-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+                  title="Custom Rate Override Active"
+                >
+                  <span>₹ Custom</span>
+                </span>
+              )} */}
             {areAllRoomsBlocked && !isBooking && !isICal && (
               <span className="bg-slate-200 text-slate-600 text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                 <Lock className="w-2.5 h-2.5" />
@@ -1784,12 +2184,110 @@ const PropertyCalendarPage = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+          {/* Global Booking Mode Option */}
+          <div className="flex items-center gap-1.5 bg-slate-100/90 border border-slate-200 p-1 rounded-2xl">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => handleToggleInstantBook(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${property?.instantBook
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
+              title="Instant Book: Property is ready for instant online pay now and dates are immediately blocked"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Instant Book</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => handleToggleInstantBook(false)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${!property?.instantBook
+                ? "bg-amber-600 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
+              title="Approval: Guest submits an enquiry; dates are confirmed upon Host/Admin approval"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Host Approval</span>
+            </button>
+          </div>
+
+          {/* Default Minimum Stay Selector */}
+          <div className="flex items-center gap-1 bg-slate-100/90 border border-slate-200 p-1 rounded-2xl">
+            <span className="text-[11px] font-bold text-slate-500 px-2 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-purple-600" />
+              <span>Min Stay:</span>
+            </span>
+            {[1, 2, 3].map((n) => (
+              <button
+                key={n}
+                type="button"
+                disabled={actionLoading}
+                onClick={() => handleUpdatePropertyBaseMinNights(n)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${(property?.minNights || 1) === n
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                title={`Set default minimum stay to ${n} night${n > 1 ? "s" : ""}`}
+              >
+                {n}N
+              </button>
+            ))}
+
+            {/* Custom Number Input with Tooltip */}
+            <Tooltip title="Enter custom stay nights (e.g. 7, 10, 14) and press Enter or Check">
+              <div className="flex items-center gap-1 bg-white border border-purple-200/90 rounded-xl px-2 py-0.5 shadow-2xs">
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  placeholder="Custom"
+                  value={headerCustomMinNightsInput}
+                  onChange={(e) => setHeaderCustomMinNightsInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && headerCustomMinNightsInput) {
+                      handleUpdatePropertyBaseMinNights(headerCustomMinNightsInput);
+                    }
+                  }}
+                  className="w-14 text-xs font-bold text-center bg-transparent focus:outline-none text-purple-900"
+                />
+                {headerCustomMinNightsInput && (
+                  <button
+                    type="button"
+                    onClick={() => handleUpdatePropertyBaseMinNights(headerCustomMinNightsInput)}
+                    className="p-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                    title="Apply custom nights"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </Tooltip>
+
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={handleGlobalResetMinNights}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold text-purple-700 hover:text-purple-900 hover:bg-purple-100/70 border border-purple-200/80 transition-all cursor-pointer shadow-2xs"
+              title="Global Reset: Clears all date-specific minimum stay overrides across the whole calendar back to 1 Night Default"
+            >
+              <RefreshCw className="w-3 h-3 text-purple-600" />
+              <span>Reset All (1N)</span>
+            </button>
+          </div>
+
+          {/* Dedicated Custom Date-Wise Stay Restriction Button */}
+
+
           <button
             type="button"
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-semibold cursor-pointer transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-semibold cursor-pointer transition-all"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
@@ -1842,15 +2340,15 @@ const PropertyCalendarPage = () => {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-3xl p-3.5 flex items-center gap-3 shadow-xs">
-          <div className="w-9 h-9 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center font-bold shrink-0">
-            <Globe className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-2xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center font-bold shrink-0">
+            <Clock className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <span className="text-[11px] text-slate-500 font-medium block truncate">
-              iCal Sync
+              Default Min Stay
             </span>
             <span className="text-base font-bold text-slate-900 font-mono">
-              {icalFeeds.length} Feeds
+              {property?.minNights || 1} Night{(property?.minNights || 1) > 1 ? "s" : ""}
             </span>
           </div>
         </div>
@@ -1872,7 +2370,7 @@ const PropertyCalendarPage = () => {
                   Quick Rates &amp; Date Availability
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Batch set custom nightly rates, extra guest fees, or
+                  Batch set custom nightly rates, min nights stay, extra guest fees, or
                   block/release dates
                 </p>
               </div>
@@ -1915,6 +2413,16 @@ const PropertyCalendarPage = () => {
             </button>
             <button
               type="button"
+              onClick={handleTopApplyStayRestriction}
+              disabled={actionLoading}
+              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/90 font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-2xs shrink-0"
+              title="Restrict Min Stay for selected dates only (e.g. New Year Dec/Jan)"
+            >
+              <Clock className="w-3.5 h-3.5 text-purple-600" />
+              <span>Set Min Stay</span>
+            </button>
+            <button
+              type="button"
               onClick={handleUpdateCustomRates}
               disabled={actionLoading}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
@@ -1926,7 +2434,7 @@ const PropertyCalendarPage = () => {
         </div>
 
         <div className={`${isRatesCollapsedMobile ? "hidden sm:block" : "block"} space-y-4`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-xs">
             {/* Range Picker */}
             <div className="space-y-1 sm:col-span-2">
               <label className="text-[11px] font-semibold text-slate-600">
@@ -1996,6 +2504,21 @@ const PropertyCalendarPage = () => {
                   }`}
                 value={customRateInput}
                 onChange={(e) => setCustomRateInput(e.target.value)}
+                className="rounded-2xl text-xs py-2 font-mono font-bold"
+              />
+            </div>
+
+            {/* Min Stay Nights Override */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-600">
+                Min Stay (Nights)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                placeholder={`Base: ${property?.minNights || 1}N`}
+                value={customMinNightsInput}
+                onChange={(e) => setCustomMinNightsInput(e.target.value)}
                 className="rounded-2xl text-xs py-2 font-mono font-bold"
               />
             </div>
@@ -2446,6 +2969,73 @@ const PropertyCalendarPage = () => {
                 </div>
               )}
 
+              {/* Dedicated Stay Restriction Card in Sidebar for Discrete Dates */}
+              <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-purple-700" />
+                    <span className="font-bold text-slate-800 text-xs">
+                      Min Stay Restriction ({selectedCustomDates.length} Dates)
+                    </span>
+                  </div>
+                  {drawerMultiMinNights !== "" && (
+                    <button
+                      type="button"
+                      onClick={handleResetDrawerMultiMinNights}
+                      disabled={actionLoading}
+                      className="text-[10px] text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-0.5"
+                      title="Reset stay restriction to baseline"
+                    >
+                      <RefreshCw className="w-2.5 h-2.5" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1">
+                  {[1, 2, 3, 4, 5, 7].map((n) => {
+                    const isSelected = drawerMultiMinNights === String(n);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => {
+                          setDrawerMultiMinNights(String(n));
+                          handleApplyDrawerMultiMinNights(n);
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                          isSelected
+                            ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                        }`}
+                      >
+                        {n === 1 ? "1N (Default)" : `${n}N`}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Custom (e.g. 3)"
+                    value={drawerMultiMinNights}
+                    onChange={(e) => setDrawerMultiMinNights(e.target.value)}
+                    onPressEnter={() => handleApplyDrawerMultiMinNights()}
+                    className="rounded-xl text-xs py-1 font-mono font-bold flex-1 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleApplyDrawerMultiMinNights()}
+                    disabled={actionLoading || !drawerMultiMinNights}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+
               {/* Quick Actions */}
               <div className="space-y-2 pt-1">
                 <button
@@ -2585,7 +3175,7 @@ const PropertyCalendarPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
-                    placeholder={`Adult (Base: ₹${property?.extraAdultFee || 0
+                    placeholder={`Adult (₹${property?.extraAdultFee || 0
                       })`}
                     value={rangeExtraAdultPrice}
                     onChange={(e) => setRangeExtraAdultPrice(e.target.value)}
@@ -2593,12 +3183,81 @@ const PropertyCalendarPage = () => {
                   />
                   <Input
                     type="number"
-                    placeholder={`Kid (Base: ₹${property?.extraChildFee || 0})`}
+                    placeholder={`Kid (₹${property?.extraChildFee || 0})`}
                     value={rangeExtraChildPrice}
                     onChange={(e) => setRangeExtraChildPrice(e.target.value)}
                     className="rounded-xl text-xs py-1.5 font-mono"
                   />
                 </div>
+
+                {/* Minimum Stay Restriction Toggle Card for Range */}
+                <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-purple-700" />
+                      <span className="font-bold text-slate-800 text-xs">
+                        Min Stay Stay Rule
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {rangeMinNights !== "" && (
+                        <button
+                          type="button"
+                          onClick={handleResetMinNightsRange}
+                          disabled={actionLoading}
+                          className="text-[10px] text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-0.5"
+                          title="Reset minimum stay rule to base for this range"
+                        >
+                          <RefreshCw className="w-2.5 h-2.5" />
+                          <span>Reset</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleGlobalResetMinNights}
+                        disabled={actionLoading}
+                        className="text-[10px] text-slate-500 hover:text-purple-900 font-semibold underline cursor-pointer"
+                        title="Global Reset: Clears all date-specific minimum stay overrides across the whole calendar back to 1 Night Default"
+                      >
+                        Reset All (1N)
+                      </button>
+                    </div>
+                  </div>
+                 
+                  <div className="flex flex-wrap items-center gap-1">
+                    {[1, 2, 3, 4, 5, 7].map((n) => {
+                      const isSelected = rangeMinNights === String(n) || (rangeMinNights === "" && n === (property?.minNights || 1));
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => setRangeMinNights(rangeMinNights === String(n) ? "" : String(n))}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${isSelected
+                              ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                            }`}
+                        >
+                          {n === 1 ? "1N (Default)" : `${n}N`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <label className="text-[10px] font-bold uppercase text-slate-500 shrink-0">
+                      Custom:
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder={`${property?.minNights || 1}N`}
+                      value={rangeMinNights}
+                      onChange={(e) => setRangeMinNights(e.target.value)}
+                      className="rounded-xl text-xs py-1 font-mono font-bold w-20 bg-white"
+                    />
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleSaveRangeCustomRate}
@@ -2701,7 +3360,8 @@ const PropertyCalendarPage = () => {
                   </span>
                   {(hasCustomPrice ||
                     hasCustomAdultFee ||
-                    hasCustomChildFee) && (
+                    hasCustomChildFee ||
+                    singleDateMinNights !== "") && (
                       <button
                         type="button"
                         onClick={handleClearSingleDateCustomRates}
@@ -2743,6 +3403,78 @@ const PropertyCalendarPage = () => {
                     className="rounded-xl text-xs py-1.5 font-mono"
                   />
                 </div>
+
+                {/* Minimum Stay Restriction Toggle Card for Single Date */}
+                {/* <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-purple-700" />
+                      <span className="font-bold text-slate-800 text-xs">
+                        Min Stay Stay Rule
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {singleDateMinNights !== "" && (
+                        <button
+                          type="button"
+                          onClick={handleResetMinNightsSingleDate}
+                          disabled={actionLoading}
+                          className="text-[10px] text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-0.5"
+                          title="Reset single date minimum stay rule to base"
+                        >
+                          <RefreshCw className="w-2.5 h-2.5" />
+                          <span>Reset</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleGlobalResetMinNights}
+                        disabled={actionLoading}
+                        className="text-[10px] text-slate-500 hover:text-purple-900 font-semibold underline cursor-pointer"
+                        title="Global Reset: Clears all date-specific minimum stay overrides across the whole calendar back to 1 Night Default"
+                      >
+                        Reset All (1N)
+                      </button>
+                    </div>
+                  </div>
+                 
+                  <div className="flex flex-wrap items-center gap-1">
+                    {[1, 2, 3, 4, 5, 7].map((n) => {
+                      const effectiveVal = singleDateMinNights !== ""
+                        ? Number(singleDateMinNights)
+                        : (property?.minNights || 1);
+                      const isSelected = effectiveVal === n;
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => setSingleDateMinNights(String(n))}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${isSelected
+                            ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                            }`}
+                        >
+                          {n === 1 ? "1N (Default)" : `${n}N`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <label className="text-[10px] font-bold uppercase text-slate-500 shrink-0">
+                      Custom:
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder={`${property?.minNights || 1}N`}
+                      value={singleDateMinNights}
+                      onChange={(e) => setSingleDateMinNights(e.target.value)}
+                      className="rounded-xl text-xs py-1 font-mono font-bold w-20 bg-white"
+                    />
+                  </div>
+                </div> */}
+
                 <button
                   type="button"
                   onClick={handleSaveSingleDateCustomRate}
@@ -3262,6 +3994,83 @@ const PropertyCalendarPage = () => {
                 </div>
               </div>
 
+              {/* Dedicated Stay Restriction Card for Multi-Selected Dates */}
+              <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-purple-700" />
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      Min Stay for {selectedCustomDates.length} Dates
+                    </h4>
+                  </div>
+                  {drawerMultiMinNights !== "" && (
+                    <button
+                      type="button"
+                      onClick={handleResetDrawerMultiMinNights}
+                      disabled={actionLoading}
+                      className="text-xs text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-1"
+                      title="Reset stay restriction to baseline for selected dates"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  Restrict minimum required nights for guests checking in on these {selectedCustomDates.length} selected dates (e.g. New Year / Holiday seasons).
+                </p>
+
+                {/* Quick Select Pills */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[1, 2, 3, 4, 5, 7].map((n) => {
+                    const isSelected = drawerMultiMinNights === String(n);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => {
+                          setDrawerMultiMinNights(String(n));
+                          handleApplyDrawerMultiMinNights(n);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                          isSelected
+                            ? "bg-purple-600 text-white border-purple-600 shadow-xs ring-1 ring-purple-600"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                        }`}
+                      >
+                        {n === 1 ? "1N (Default)" : `${n} Nights`}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="365"
+                      placeholder="Custom nights (e.g. 3, 5, 10)"
+                      value={drawerMultiMinNights}
+                      onChange={(e) => setDrawerMultiMinNights(e.target.value)}
+                      onPressEnter={() => handleApplyDrawerMultiMinNights()}
+                      className="rounded-xl text-xs py-2 font-mono font-bold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyDrawerMultiMinNights()}
+                    disabled={actionLoading || !drawerMultiMinNights}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs shrink-0"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Set Min Nights</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Action 2: Block Selected Dates */}
               <div className="border border-slate-200 rounded-2xl p-4 bg-white space-y-4 shadow-xs">
                 <div className="flex items-center gap-2">
@@ -3482,6 +4291,77 @@ const PropertyCalendarPage = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Dedicated Minimum Stay Restriction Card */}
+                    <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3.5 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-purple-700" />
+                          <span className="font-bold text-slate-800 text-xs">
+                            Minimum Stay Stay Rule ({nightsCount} Nights)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {rangeMinNights !== "" && (
+                            <button
+                              type="button"
+                              onClick={handleResetMinNightsRange}
+                              disabled={actionLoading}
+                              className="text-[10px] text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-1"
+                              title="Reset range minimum stay rule back to base"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" />
+                              <span>Reset Range</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleGlobalResetMinNights}
+                            disabled={actionLoading}
+                            className="text-[10px] text-slate-500 hover:text-purple-900 font-semibold underline cursor-pointer"
+                            title="Global Reset: Clears all date-specific minimum stay overrides across the whole calendar back to 1 Night Default"
+                          >
+                            Reset All Calendar (1N)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Toggle / Selector Pills */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {[1, 2, 3, 4, 5, 7].map((n) => {
+                          const isSelected = rangeMinNights === String(n) || (rangeMinNights === "" && n === (property?.minNights || 1));
+                          return (
+                            <button
+                              key={n}
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => setRangeMinNights(rangeMinNights === String(n) ? "" : String(n))}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${isSelected
+                                ? "bg-purple-600 text-white border-purple-600 shadow-xs ring-1 ring-purple-600"
+                                : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                                }`}
+                            >
+                              {n === 1 ? "1N (Default)" : `${n} Nights`}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 shrink-0">
+                          Custom Nights:
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder={`Default: ${property?.minNights || 1}N`}
+                          value={rangeMinNights}
+                          onChange={(e) => setRangeMinNights(e.target.value)}
+                          className="rounded-xl text-xs py-1.5 font-mono font-bold w-24 bg-white"
+                        />
+                      </div>
+                    </div>
+
                     <button
                       type="button"
                       onClick={handleSaveRangeCustomRate}
@@ -3489,7 +4369,7 @@ const PropertyCalendarPage = () => {
                       className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Save Range Rates &amp; Guest Fees</span>
+                      <span>Save Range Rates, Stay Rules &amp; Fees</span>
                     </button>
                   </div>
                 </div>
@@ -3714,6 +4594,28 @@ const PropertyCalendarPage = () => {
                     </div>
                   </div>
 
+                  {/* Min Stay Nights */}
+                  <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-2">
+                    <span className="text-slate-600 font-medium">
+                      Minimum Stay:
+                    </span>
+                    <div className="text-right flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 font-mono">
+                        {selectedRateRecord?.minNights || property?.minNights || 1} Night
+                        {(selectedRateRecord?.minNights || property?.minNights || 1) > 1 ? "s" : ""}
+                      </span>
+                      {selectedRateRecord?.minNights ? (
+                        <span className="text-[9.5px] font-bold bg-purple-100 text-purple-800 border border-purple-300 px-1.5 py-0.5 rounded-md">
+                          Custom (Base: {property?.minNights || 1}N)
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                          Base
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Guest Capacity Info */}
                   <div className="flex justify-between items-center text-[11px] text-slate-500 border-t border-slate-100 pt-2">
                     <span>Guest Allowance:</span>
@@ -3774,13 +4676,14 @@ const PropertyCalendarPage = () => {
                     </span>
                     {(hasCustomPrice ||
                       hasCustomAdultFee ||
-                      hasCustomChildFee) && (
+                      hasCustomChildFee ||
+                      selectedRateRecord?.minNights) && (
                         <button
                           type="button"
                           onClick={handleClearSingleDateCustomRates}
                           disabled={actionLoading}
                           className="text-[10px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
-                          title="Reset custom price and fee overrides back to property base"
+                          title="Reset custom price, min stay and fee overrides back to property base"
                         >
                           Reset to Base
                         </button>
@@ -3807,13 +4710,11 @@ const PropertyCalendarPage = () => {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
-                          Extra Adult Fee (₹)
+                          Extra Adult (₹)
                         </label>
                         <Input
                           type="number"
-                          placeholder={`Base: ₹${property?.extraAdultFee?.toLocaleString("en-IN") ||
-                            0
-                            }`}
+                          placeholder={`₹${property?.extraAdultFee || 0}`}
                           value={singleDateExtraAdultPrice}
                           onChange={(e) =>
                             setSingleDateExtraAdultPrice(e.target.value)
@@ -3823,18 +4724,89 @@ const PropertyCalendarPage = () => {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
-                          Extra Child Fee (₹)
+                          Extra Kid (₹)
                         </label>
                         <Input
                           type="number"
-                          placeholder={`Base: ₹${property?.extraChildFee?.toLocaleString("en-IN") ||
-                            0
-                            }`}
+                          placeholder={`₹${property?.extraChildFee || 0}`}
                           value={singleDateExtraChildPrice}
                           onChange={(e) =>
                             setSingleDateExtraChildPrice(e.target.value)
                           }
                           className="rounded-xl text-xs py-1.5 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dedicated Minimum Stay Restriction Card for Single Date */}
+                    <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3.5 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-purple-700" />
+                          <span className="font-bold text-slate-800 text-xs">
+                            Minimum Stay Rule
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {(singleDateMinNights !== "" || selectedRateRecord?.minNights) && (
+                            <button
+                              type="button"
+                              onClick={handleResetMinNightsSingleDate}
+                              disabled={actionLoading}
+                              className="text-[10px] text-purple-700 hover:text-purple-900 font-bold underline cursor-pointer flex items-center gap-1"
+                              title="Reset minimum stay rule back to base"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" />
+                              <span>Reset Date</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleGlobalResetMinNights}
+                            disabled={actionLoading}
+                            className="text-[10px] text-slate-500 hover:text-purple-900 font-semibold underline cursor-pointer"
+                            title="Global Reset: Clears all date-specific minimum stay overrides across the whole calendar back to 1 Night Default"
+                          >
+                            Reset All Calendar (1N)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Toggle / Selector Pills */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {[1, 2, 3, 4, 5, 7].map((n) => {
+                          const effectiveVal = singleDateMinNights !== ""
+                            ? Number(singleDateMinNights)
+                            : (selectedRateRecord?.minNights || property?.minNights || 1);
+                          const isSelected = effectiveVal === n;
+                          return (
+                            <button
+                              key={n}
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => setSingleDateMinNights(String(n))}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${isSelected
+                                ? "bg-purple-600 text-white border-purple-600 shadow-xs ring-1 ring-purple-600"
+                                : "bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50"
+                                }`}
+                            >
+                              {n === 1 ? "1N (Default)" : `${n} Nights`}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <label className="text-[10px] font-bold uppercase text-slate-500 shrink-0">
+                          Custom Nights:
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder={`Default: ${property?.minNights || 1}N`}
+                          value={singleDateMinNights}
+                          onChange={(e) => setSingleDateMinNights(e.target.value)}
+                          className="rounded-xl text-xs py-1.5 font-mono font-bold w-24 bg-white"
                         />
                       </div>
                     </div>
@@ -3846,7 +4818,7 @@ const PropertyCalendarPage = () => {
                       className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Save Rate &amp; Guest Fees</span>
+                      <span>Save Rate, Stay Rules &amp; Fees</span>
                     </button>
                   </div>
                 </div>
@@ -4049,6 +5021,118 @@ const PropertyCalendarPage = () => {
           )}
         </div>
       </Drawer>
+
+      {/* Dedicated Date-Wise Stay Restriction Modal */}
+      <Modal
+        open={isDateRestrictionModalOpen}
+        onCancel={() => setIsDateRestrictionModalOpen(false)}
+        footer={null}
+        centered
+        width={520}
+        title={
+          <div className="flex items-center gap-2 text-slate-900 font-bold text-base border-b border-slate-100 pb-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <span>Custom Date-Wise Stay Restriction</span>
+              <p className="text-xs font-normal text-slate-500 mt-0.5">
+                Set maximum allowed stay nights for specific dates / ranges
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4 pt-2 font-sans">
+          {/* 1. Date Range Picker */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+              Select Date Range
+            </label>
+            <DatePicker.RangePicker
+              value={modalRestrictionRange}
+              onChange={(val) => setModalRestrictionRange(val)}
+              className="w-full rounded-xl py-2 font-semibold text-xs border border-slate-200"
+              format="YYYY-MM-DD"
+              placeholder={["Start Date", "End Date"]}
+            />
+            {modalRestrictionRange && modalRestrictionRange[0] && modalRestrictionRange[1] && (
+              <p className="text-[11px] text-purple-700 font-semibold mt-1">
+                Selected: {modalRestrictionRange[0].format("D MMM YYYY")} → {modalRestrictionRange[1].format("D MMM YYYY")} ({modalRestrictionRange[1].diff(modalRestrictionRange[0], "day") + 1} days)
+              </p>
+            )}
+          </div>
+
+          {/* 2. Restriction Nights Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+              Stay Restriction (Allowed Nights)
+            </label>
+            <div className="grid grid-cols-5 gap-1.5 mb-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    setModalRestrictionNights(n);
+                    setModalCustomNightsInput("");
+                  }}
+                  className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${modalRestrictionNights === n && modalCustomNightsInput === ""
+                    ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:border-purple-300"
+                    }`}
+                >
+                  {n === 1 ? "1N (Base)" : `${n} Nights`}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="30"
+                placeholder="Or custom nights (e.g. 7)"
+                value={modalCustomNightsInput}
+                onChange={(e) => setModalCustomNightsInput(e.target.value)}
+                className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-xl focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* 3. Action Buttons */}
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={handleResetModalRestriction}
+              disabled={actionLoading || !modalRestrictionRange}
+              className="px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Reset Selected Dates
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDateRestrictionModalOpen(false)}
+                className="px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleApplyModalRestriction}
+                disabled={actionLoading || !modalRestrictionRange}
+                className="px-4 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Apply Restriction</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
