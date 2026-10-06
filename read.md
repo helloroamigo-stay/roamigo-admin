@@ -10,3 +10,4 @@
 - feat: filter and pagination 
 - approval and instant booking 
 - fix: min stays
+- fix: room booking glitch
