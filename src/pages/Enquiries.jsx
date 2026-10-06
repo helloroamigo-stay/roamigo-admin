@@ -157,9 +157,7 @@ const Enquiries = () => {
     setSelectedEnquiryForConfirm(enq);
     const roomsText =
       enq.rooms && enq.rooms.length > 0
-        ? ` (Rooms: ${enq.rooms
-            .map((r) => String(r).replace(/^room\s*/i, ""))
-            .join(", ")})`
+        ? ` (${enq.rooms.length} ${enq.rooms.length === 1 ? "Room" : "Rooms"})`
         : "";
     const paid = isPaidOnline(enq);
     setCustomMessage(
@@ -733,12 +731,7 @@ const Enquiries = () => {
                             </div>
                             {enq.rooms && enq.rooms.length > 0 && (
                               <div className="text-[10px] text-brand-700 bg-brand-50 border border-brand-100 rounded px-1.5 py-0.5 w-fit mt-1 font-semibold">
-                                Rooms:{" "}
-                                {enq.rooms
-                                  .map((r) =>
-                                    String(r).replace(/^room\s*/i, "")
-                                  )
-                                  .join(", ")}
+                                Rooms: {enq.rooms.length} {enq.rooms.length === 1 ? "Room" : "Rooms"}
                               </div>
                             )}
                           </div>
