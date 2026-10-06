@@ -31,10 +31,20 @@ const Properties = () => {
 
   // Search, Filters, Pagination & View Mode States
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedHost, setSelectedHost] = useState("ALL");
   const [selectedUploadSource, setSelectedUploadSource] = useState("ALL");
   const [selectedCity, setSelectedCity] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Debounce search input to avoid glitchy re-renders and request flooding
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [counts, setCounts] = useState({
@@ -223,7 +233,7 @@ const Properties = () => {
       const res = await adminAPI.getProperties({
         page: currentPage,
         limit: pageSize,
-        search: searchTerm.trim() || undefined,
+        search: debouncedSearchTerm.trim() || undefined,
         status: activeTab !== "ALL" ? activeTab : undefined,
         hostId: selectedHost !== "ALL" ? selectedHost : undefined,
         uploadSource: selectedUploadSource !== "ALL" ? selectedUploadSource : undefined,
@@ -243,7 +253,7 @@ const Properties = () => {
   }, [
     currentPage,
     pageSize,
-    searchTerm,
+    debouncedSearchTerm,
     activeTab,
     selectedHost,
     selectedUploadSource,
@@ -464,114 +474,6 @@ const Properties = () => {
     }
   };
 
-  const filteredProperties = properties.filter((p) => {
-    // Tab Filter
-    let matchesTab = false;
-    if (activeTab === "PENDING_APPROVAL") {
-      matchesTab = p.status === "PENDING_APPROVAL";
-    } else if (activeTab === "PUBLISHED") {
-      matchesTab = p.status === "PUBLISHED";
-    } else if (activeTab === "ALL") {
-      matchesTab = true;
-    } else {
-      matchesTab = ["DRAFT", "REJECTED", "SUSPENDED", "ARCHIVED"].includes(
-        p.status
-      );
-    }
-
-    if (!matchesTab) return false;
-
-    // Upload Type Filter (Host uploaded vs Admin uploaded)
-    if (selectedUploadSource === "HOST") {
-      const isHostUploaded = p.providerId && p.providerId.role !== "ADMIN";
-      if (!isHostUploaded) return false;
-    } else if (selectedUploadSource === "ADMIN") {
-      const isAdminUploaded = !p.providerId || p.providerId.role === "ADMIN";
-      if (!isAdminUploaded) return false;
-    }
-
-    // Host Filter
-    if (selectedHost && selectedHost !== "ALL") {
-      const propProviderId = String(
-        typeof p.providerId === "object"
-          ? p.providerId?._id || ""
-          : p.providerId || ""
-      );
-      const propUserId = String(
-        typeof p.providerId?.userId === "object"
-          ? p.providerId?.userId?._id || ""
-          : p.providerId?.userId || ""
-      );
-      const propProviderName = (
-        p.providerId?.name ||
-        p.providerId?.userId?.name ||
-        ""
-      ).toLowerCase();
-
-      const matchesHost =
-        propProviderId === selectedHost ||
-        propUserId === selectedHost ||
-        propProviderName === selectedHost.toLowerCase();
-
-      if (!matchesHost) return false;
-    }
-
-    // City Filter
-    if (selectedCity && selectedCity !== "ALL") {
-      const propCityId = String(
-        typeof p.cityId === "object"
-          ? p.cityId?._id || ""
-          : p.cityId || ""
-      );
-      const propCityName = (p.cityId?.name || p.city || "").toLowerCase().trim();
-
-      const matchesCity =
-        propCityId === selectedCity ||
-        propCityName === selectedCity.toLowerCase().trim();
-
-      if (!matchesCity) return false;
-    }
-
-    // Search Term Filter
-    if (!searchTerm.trim()) return true;
-
-    const term = searchTerm.toLowerCase().trim();
-    const title = (p.title || "").toLowerCase();
-    const address = (p.address || "").toLowerCase();
-    const city = (p.cityId?.name || p.city || "").toLowerCase();
-    const state = (p.state || "").toLowerCase();
-    const country = (p.country || "").toLowerCase();
-    const propertyType = (p.propertyType || "").toLowerCase();
-    const tagline = (p.tagline || "").toLowerCase();
-    const providerName = (
-      p.providerId?.name ||
-      p.providerId?.userId?.name ||
-      ""
-    ).toLowerCase();
-    const providerEmail = (
-      p.providerId?.email ||
-      p.providerId?.userId?.email ||
-      ""
-    ).toLowerCase();
-
-    return (
-      title.includes(term) ||
-      address.includes(term) ||
-      city.includes(term) ||
-      state.includes(term) ||
-      country.includes(term) ||
-      propertyType.includes(term) ||
-      tagline.includes(term) ||
-      providerName.includes(term) ||
-      providerEmail.includes(term)
-    );
-  });
-
-  const paginatedProperties = filteredProperties.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   const getStatusStyle = (status) => {
     switch (status) {
       case "PUBLISHED":
@@ -769,17 +671,6 @@ const Properties = () => {
     },
   ];
 
-  if (loading) {
-    return (
-      <div className="py-24 flex flex-col items-center justify-center space-y-3">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-        <p className="text-xs text-gray-400 font-medium">
-          Fetching real-time property catalog...
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="p-8 space-y-6 max-w-[1600px] mx-auto font-sans">
       <PropertyTabs
@@ -951,7 +842,12 @@ const Properties = () => {
         </div>
       )}
 
-      {properties.length === 0 ? (
+      {loading ? (
+        <div className="py-24 flex flex-col items-center justify-center text-slate-400 space-y-3 bg-white border border-slate-200 rounded-3xl">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+          <span className="text-xs font-semibold text-slate-600">Loading properties...</span>
+        </div>
+      ) : properties.length === 0 ? (
         <div className="py-16 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-3xl bg-white space-y-3">
           <p>No property listings found matching your search or filter.</p>
           {isFiltered && (
