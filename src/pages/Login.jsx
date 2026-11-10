@@ -59,7 +59,7 @@ const Login = () => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ email: 'admin@gmail.com', password: 'admin@123' }}
+            initialValues={{ email: '', password: '' }}
             onFinish={handleSubmit}
             requiredMark={false}
             onChange={() => {
@@ -79,7 +79,7 @@ const Login = () => {
             >
               <Input
                 prefix={<Mail className="w-4 h-4 text-slate-400 mr-1.5" />}
-                placeholder="admin@roamigo.in"
+                placeholder="Enter your email"
                 size="large"
                 className="bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 rounded-2xl py-3 text-sm hover:border-brand-500 focus:border-brand-500"
               />
@@ -116,8 +116,8 @@ const Login = () => {
 
         {/* Quick Help note */}
         <p className="text-center text-xs text-slate-500 mt-6 leading-relaxed">
-          Use administrator credentials:<br />
-          <span className="text-slate-700 font-mono font-semibold">admin@roamigo.in</span> / <span className="text-slate-700 font-mono font-semibold">Password123</span>
+          {/* Use administrator credentials:<br /> */}
+          {/* <span className="text-slate-700 font-mono font-semibold">admin@roamigo.in</span> / <span className="text-slate-700 font-mono font-semibold">Password123</span> */}
         </p>
       </div>
     </div>
