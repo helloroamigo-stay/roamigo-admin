@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Build admin frontend
+      # 4. Build admin
       - name: Build admin
         run: npm run build
 
@@ -41,18 +41,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/hostinger_key
           chmod 600 ~/.ssh/hostinger_key
 
-      # 6. Diagnose Hostinger SSH fingerprints
-      - name: Diagnose Hostinger SSH fingerprints
-        env:
-          HOST: ${{ secrets.HOSTINGER_HOST }}
-          PORT: ${{ secrets.HOSTINGER_PORT }}
-        run: |
-          for TYPE in ed25519 ecdsa rsa; do
-            echo "Checking $TYPE fingerprint..."
-            ssh-keyscan -p "$PORT" -t "$TYPE" "$HOST" 2>/dev/null | ssh-keygen -lf -
-          done
-
-      # 7. Deploy build directly to Hostinger
+      # 6. Deploy directly using SCP
       - name: Deploy to Hostinger
         env:
           HOST: ${{ secrets.HOSTINGER_HOST }}
@@ -61,14 +50,15 @@ jobs:
         run: |
           scp -i ~/.ssh/hostinger_key \
             -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
             -P "$PORT" \
             -r dist/. \
             "$USER@$HOST:/home/u551345171/domains/roamigo.in/public_html/admin/"
 
           echo "Admin deployment completed successfully."
 
-      # 8. Cleanup SSH private key
+      # 7. Cleanup SSH key
       - name: Cleanup SSH key
         if: always()
         run: |
