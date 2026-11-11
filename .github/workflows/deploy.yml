@@ -25,6 +25,7 @@ jobs:
       - name: Build admin
         run: npm run build
 
+      
       - name: Deploy using SSH
         uses: appleboy/scp-action@v1
         with:
@@ -37,3 +38,5 @@ jobs:
           target: "/home/u551345171/domains/roamigo.in/public_html/admin/"
           strip_components: 1
           overwrite: true
+          debug: true
+
