@@ -1,4 +1,3 @@
-
 name: Deploy Admin to Hostinger
 
 on:
@@ -29,13 +28,11 @@ jobs:
       - name: Deploy using SSH
         uses: appleboy/scp-action@v1
         with:
-          host: 82.112.232.64
-          username: u551345171
-          port: 65002
-          key: -----BEGIN OPENSSH PRIVATE KEY-----
-            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACAw40ZAtU5zrvqfWHGvdSZvfbkPw4O1yFS5mNlklMN8aAAAAKBBHjykQR48pAAAAAtzc2gtZWQyNTUxOQAAACAw40ZAtU5zrvqfWHGvdSZvfbkPw4O1yFS5mNlklMN8aAAA
-            AAAEBrQMP7I6ePlM2qwMUJ112+9C4+ytj1OJXKJnYycDCrZjDjRkC1TnOu+p9Yca91Jm99uQ/Dg7XIVLmY2WSUw3xoAAAAHGdpdGh1Yi1hY3Rpb25zLXJvYW1pZ28tYWRtaW4B
-            -----END OPENSSH PRIVATE KEY-----
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          fingerprint: SHA256:AINi17rORV3Xdyn4OCu+2qIt8RqzpDO1Y4oAphoWFk
           source: "dist/*"
           target: "/home/u551345171/domains/roamigo.in/public_html/admin/"
           strip_components: 1
