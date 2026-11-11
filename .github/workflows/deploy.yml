@@ -1,3 +1,4 @@
+
 name: Deploy Admin to Hostinger
 
 on:
@@ -10,38 +11,77 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Node.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
+      # 3. Install dependencies
       - name: Install dependencies
         run: npm ci
 
+      # 4. Build admin frontend
       - name: Build admin
         run: npm run build
 
-      - name: Diagnose Hostinger SSH fingerprint
+      # 5. Configure SSH
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/hostinger_key
+          chmod 600 ~/.ssh/hostinger_key
+
+      # 6. Verify Hostinger server fingerprint
+      - name: Verify Hostinger SSH fingerprint
         env:
           HOST: ${{ secrets.HOSTINGER_HOST }}
           PORT: ${{ secrets.HOSTINGER_PORT }}
         run: |
-          echo "Checking ED25519 host key from GitHub runner..."
-          ssh-keyscan -p "$PORT" -t ed25519 "$HOST" 2>/dev/null | ssh-keygen -lf -
+          ssh-keyscan -p "$PORT" -t ed25519 "$HOST" 2>/dev/null > ~/.ssh/hostinger_known_hosts
 
-      - name: Deploy using SSH
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          source: "dist/*"
-          target: "/home/u551345171/domains/roamigo.in/public_html/admin/"
-          strip_components: 1
-          overwrite: true
-          debug: true
+          ACTUAL=$(ssh-keygen -lf ~/.ssh/hostinger_known_hosts -E sha256 | awk '{print $2}')
+          EXPECTED="SHA256:AINi17rORV3Xdyn4OCu+0+2qIt8RqzpDO1Y4oAphoWFk"
+
+          echo "Hostinger fingerprint: $ACTUAL"
+
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "ERROR: Hostinger fingerprint mismatch!"
+            exit 1
+          fi
+
+          cat ~/.ssh/hostinger_known_hosts >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          echo "Hostinger server verified successfully."
+
+      # 7. Deploy build directly to Hostinger
+      - name: Deploy to Hostinger
+        env:
+          HOST: ${{ secrets.HOSTINGER_HOST }}
+          USER: ${{ secrets.HOSTINGER_USER }}
+          PORT: ${{ secrets.HOSTINGER_PORT }}
+        run: |
+          scp -i ~/.ssh/hostinger_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -P "$PORT" \
+            -r dist/. \
+            "$USER@$HOST:/home/u551345171/domains/roamigo.in/public_html/admin/"
+
+          echo "Admin deployment completed successfully."
+
+      # 8. Cleanup SSH private key
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/hostinger_key
