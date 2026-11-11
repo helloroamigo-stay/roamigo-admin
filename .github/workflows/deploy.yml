@@ -29,7 +29,7 @@ jobs:
       - name: Upload admin
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          server: ftp://82.112.232.64
+          server: 82.112.232.64
           username: u551345171.admin.roamigo.in
           password: Roamigo@44044
           local-dir: dist/
