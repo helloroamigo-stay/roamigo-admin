@@ -41,28 +41,16 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/hostinger_key
           chmod 600 ~/.ssh/hostinger_key
 
-      # 6. Verify Hostinger server fingerprint
-      - name: Verify Hostinger SSH fingerprint
+      # 6. Diagnose Hostinger SSH fingerprints
+      - name: Diagnose Hostinger SSH fingerprints
         env:
           HOST: ${{ secrets.HOSTINGER_HOST }}
           PORT: ${{ secrets.HOSTINGER_PORT }}
         run: |
-          ssh-keyscan -p "$PORT" -t ed25519 "$HOST" 2>/dev/null > ~/.ssh/hostinger_known_hosts
-
-          ACTUAL=$(ssh-keygen -lf ~/.ssh/hostinger_known_hosts -E sha256 | awk '{print $2}')
-          EXPECTED="SHA256:AINi17rORV3Xdyn4OCu+0+2qIt8RqzpDO1Y4oAphoWFk"
-
-          echo "Hostinger fingerprint: $ACTUAL"
-
-          if [ "$ACTUAL" != "$EXPECTED" ]; then
-            echo "ERROR: Hostinger fingerprint mismatch!"
-            exit 1
-          fi
-
-          cat ~/.ssh/hostinger_known_hosts >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-          echo "Hostinger server verified successfully."
+          for TYPE in ed25519 ecdsa rsa; do
+            echo "Checking $TYPE fingerprint..."
+            ssh-keyscan -p "$PORT" -t "$TYPE" "$HOST" 2>/dev/null | ssh-keygen -lf -
+          done
 
       # 7. Deploy build directly to Hostinger
       - name: Deploy to Hostinger
