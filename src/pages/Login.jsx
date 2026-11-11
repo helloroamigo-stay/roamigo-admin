@@ -46,11 +46,10 @@ const Login = () => {
           <h2 className="text-xl font-semibold text-slate-900 mb-6">Sign In</h2>
 
           {displayMessage && (
-            <div className={`flex items-start gap-3 rounded-2xl p-4 mb-6 text-sm ${
-              sessionExpiredNotice 
-                ? 'bg-amber-50 border border-amber-200 text-amber-800'
-                : 'bg-red-50 border border-red-200 text-red-700'
-            }`}>
+            <div className={`flex items-start gap-3 rounded-2xl p-4 mb-6 text-sm ${sessionExpiredNotice
+              ? 'bg-amber-50 border border-amber-200 text-amber-800'
+              : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
               <ShieldAlert className={`w-5 h-5 shrink-0 mt-0.5 ${sessionExpiredNotice ? 'text-amber-600' : 'text-red-500'}`} />
               <div>{displayMessage}</div>
             </div>

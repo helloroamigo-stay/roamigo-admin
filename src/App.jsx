@@ -10,7 +10,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Dashboard from "./pages/Dashboard";
 import Destinations from "./pages/Destinations";
-import Providers from "./pages/Providers";
+import Providers from "./pages/Providers"; 
 import Properties from "./pages/Properties";
 import PropertyReview from "./pages/PropertyReview";
 import PropertyForm from "./pages/PropertyForm";
