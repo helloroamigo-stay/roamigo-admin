@@ -1,3 +1,4 @@
+
 name: Deploy Admin to Hostinger
 
 on:
@@ -10,27 +11,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build admin
         run: npm run build
-        # env:
-        #   VITE_API_URL: https://api.example.com
 
-      - name: Upload admin
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      - name: Deploy using SSH
+        uses: appleboy/scp-action@v1
         with:
-          server: 82.112.232.64
-          username: u551345171.admin.roamigo.in
-          password: Roamigo@44044
-          local-dir: dist/
-          server-dir: admin/
+          host: 82.112.232.64
+          username: u551345171
+          port: 65002
+          key: b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACAw40ZAtU5zrvqfWHGvdSZvfbkPw4O1yFS5mNlklMN8aAAAAKBBHjykQR48pAAAAAtzc2gtZWQyNTUxOQAAACAw40ZAtU5zrvqfWHGvdSZvfbkPw4O1yFS5mNlklMN8aAAAAEBrQMP7I6ePlM2qwMUJ112+9C4+ytj1OJXKJnYycDCrZjDjRkC1TnOu+p9Yca91Jm99uQ/Dg7XIVLmY2WSUw3xoAAAAHGdpdGh1Yi1hY3Rpb25zLXJvYW1pZ28tYWRtaW4B
+          source: "dist/*"
+          target: "/home/u551345171/domains/roamigo.in/public_html/admin/"
+          strip_components: 1
+          overwrite: true
