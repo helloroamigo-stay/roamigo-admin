@@ -26,6 +26,16 @@ jobs:
         run: npm run build
 
       
+      
+    
+      - name: Diagnose Hostinger SSH fingerprint
+        env:
+          HOST: ${{ secrets.HOSTINGER_HOST }}
+          PORT: ${{ secrets.HOSTINGER_PORT }}
+        run: |
+          echo "Checking ED25519 host key from GitHub runner..."
+          ssh-keyscan -p "$PORT" -t ed25519 "$HOST" 2>/dev/null | ssh-keygen -lf -
+
       - name: Deploy using SSH
         uses: appleboy/scp-action@v1
         with:
@@ -39,4 +49,5 @@ jobs:
           strip_components: 1
           overwrite: true
           debug: true
+
 
